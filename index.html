@@ -1706,6 +1706,252 @@
             }
 
             // ============================================================
+            // SHIMMER REVERB (Freeverb/Greyhole inspired)
+            // ============================================================
+            class ShimmerReverb {
+                constructor(audioCtx) {
+                    this.audioCtx = audioCtx;
+                    this.input = audioCtx.createGain();
+                    this.output = audioCtx.createGain();
+
+                    // Parameters
+                    this.decay = 0.85;
+                    this.damping = 0.3;
+                    this.size = 1.0;
+                    this.modDepth = 0.002;
+                    this.modRate = 0.5;
+
+                    // Freeverb-style comb filter delay times (in seconds at 44.1kHz, scaled)
+                    this.combTunings = [
+                        0.0297, 0.0371, 0.0411, 0.0437, 0.0229, 0.0267, 0.0313,
+                        0.0359,
+                    ];
+
+                    // Allpass filter delay times
+                    this.allpassTunings = [0.0053, 0.0127, 0.0091, 0.0107];
+
+                    this.combs = [];
+                    this.allpasses = [];
+                    this.dampFilters = [];
+                    this.modOscs = [];
+                    this.modGains = [];
+
+                    this.buildGraph();
+                }
+
+                buildGraph() {
+                    const ctx = this.audioCtx;
+
+                    // Pre-delay
+                    this.preDelay = ctx.createDelay(0.5);
+                    this.preDelay.delayTime.value = 0.02;
+
+                    // Input diffusion (allpass chain)
+                    this.inputDiffusion = [];
+                    for (let i = 0; i < 2; i++) {
+                        const ap = this.createAllpass(0.005 + i * 0.003, 0.5);
+                        this.inputDiffusion.push(ap);
+                    }
+
+                    // Parallel comb filters (8 total, 4 per channel for stereo)
+                    const combMergerL = ctx.createGain();
+                    const combMergerR = ctx.createGain();
+                    combMergerL.gain.value = 0.25;
+                    combMergerR.gain.value = 0.25;
+
+                    for (let i = 0; i < 8; i++) {
+                        const comb = this.createModulatedComb(
+                            this.combTunings[i] * this.size,
+                            this.decay,
+                            i,
+                        );
+                        this.combs.push(comb);
+
+                        // Route to L or R
+                        if (i < 4) {
+                            comb.output.connect(combMergerL);
+                        } else {
+                            comb.output.connect(combMergerR);
+                        }
+                    }
+
+                    // Output allpass diffusion (stereo)
+                    const allpassChainL = this.createAllpassChain();
+                    const allpassChainR = this.createAllpassChain();
+
+                    // Stereo output
+                    this.stereoMerger = ctx.createChannelMerger(2);
+
+                    // Connect the graph
+                    this.input.connect(this.preDelay);
+
+                    // Input diffusion chain
+                    let lastNode = this.preDelay;
+                    for (const ap of this.inputDiffusion) {
+                        lastNode.connect(ap.input);
+                        lastNode = ap.output;
+                    }
+
+                    // Fan out to combs
+                    for (const comb of this.combs) {
+                        lastNode.connect(comb.input);
+                    }
+
+                    // Through allpass chains to stereo output
+                    combMergerL.connect(allpassChainL.input);
+                    combMergerR.connect(allpassChainR.input);
+
+                    allpassChainL.output.connect(this.stereoMerger, 0, 0);
+                    allpassChainR.output.connect(this.stereoMerger, 0, 1);
+
+                    // Cross-feed for wider stereo
+                    const crossL = ctx.createGain();
+                    const crossR = ctx.createGain();
+                    crossL.gain.value = 0.2;
+                    crossR.gain.value = 0.2;
+                    allpassChainL.output.connect(crossR);
+                    allpassChainR.output.connect(crossL);
+                    crossL.connect(this.stereoMerger, 0, 0);
+                    crossR.connect(this.stereoMerger, 0, 1);
+
+                    this.stereoMerger.connect(this.output);
+                }
+
+                createModulatedComb(delayTime, feedback, index) {
+                    const ctx = this.audioCtx;
+
+                    const input = ctx.createGain();
+                    const delay = ctx.createDelay(1.0);
+                    const feedbackGain = ctx.createGain();
+                    const damper = ctx.createBiquadFilter();
+                    const output = ctx.createGain();
+
+                    delay.delayTime.value = delayTime;
+                    feedbackGain.gain.value = feedback;
+
+                    // Damping filter (lowpass in feedback loop)
+                    damper.type = "lowpass";
+                    damper.frequency.value = 4000 * (1 - this.damping);
+                    damper.Q.value = 0.5;
+                    this.dampFilters.push(damper);
+
+                    // LFO for delay time modulation (Greyhole-style shimmer)
+                    const lfo = ctx.createOscillator();
+                    const lfoGain = ctx.createGain();
+                    lfo.type = "sine";
+                    lfo.frequency.value = this.modRate * (0.8 + index * 0.1);
+                    lfoGain.gain.value = this.modDepth * delayTime;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(delay.delayTime);
+                    lfo.start();
+                    this.modOscs.push(lfo);
+                    this.modGains.push({ gain: lfoGain, baseDelay: delayTime });
+
+                    // Comb filter topology
+                    input.connect(delay);
+                    delay.connect(output);
+                    delay.connect(damper);
+                    damper.connect(feedbackGain);
+                    feedbackGain.connect(delay);
+
+                    return { input, output, delay, feedbackGain, damper };
+                }
+
+                createAllpass(delayTime, feedback) {
+                    const ctx = this.audioCtx;
+
+                    const input = ctx.createGain();
+                    const output = ctx.createGain();
+                    const delay = ctx.createDelay(0.5);
+                    const feedbackGain = ctx.createGain();
+                    const feedforwardGain = ctx.createGain();
+
+                    delay.delayTime.value = delayTime;
+                    feedbackGain.gain.value = feedback;
+                    feedforwardGain.gain.value = -feedback;
+
+                    // Allpass topology
+                    input.connect(delay);
+                    input.connect(feedforwardGain);
+                    delay.connect(output);
+                    delay.connect(feedbackGain);
+                    feedbackGain.connect(input);
+                    feedforwardGain.connect(output);
+
+                    return { input, output, delay };
+                }
+
+                createAllpassChain() {
+                    const ctx = this.audioCtx;
+                    const input = ctx.createGain();
+                    const output = ctx.createGain();
+
+                    let lastNode = input;
+                    for (const time of this.allpassTunings) {
+                        const ap = this.createAllpass(time * this.size, 0.5);
+                        this.allpasses.push(ap);
+                        lastNode.connect(ap.input);
+                        lastNode = ap.output;
+                    }
+                    lastNode.connect(output);
+
+                    return { input, output };
+                }
+
+                setDecay(value) {
+                    // value 0-1, map to feedback 0.7-0.98
+                    this.decay = 0.7 + value * 0.28;
+                    for (const comb of this.combs) {
+                        comb.feedbackGain.gain.setValueAtTime(
+                            this.decay,
+                            this.audioCtx.currentTime,
+                        );
+                    }
+                }
+
+                setDamping(value) {
+                    // value 0-1
+                    this.damping = value;
+                    const freq = 8000 * (1 - value * 0.8);
+                    for (const filter of this.dampFilters) {
+                        filter.frequency.setValueAtTime(
+                            freq,
+                            this.audioCtx.currentTime,
+                        );
+                    }
+                }
+
+                setSize(value) {
+                    // value 0-1, affects delay times
+                    this.size = 0.5 + value * 1.5;
+                    this.combs.forEach((comb, i) => {
+                        const newTime = this.combTunings[i] * this.size;
+                        comb.delay.delayTime.setValueAtTime(
+                            newTime,
+                            this.audioCtx.currentTime,
+                        );
+                    });
+                }
+
+                setModulation(depth, rate) {
+                    this.modDepth = depth;
+                    this.modRate = rate;
+                    this.modOscs.forEach((osc, i) => {
+                        osc.frequency.setValueAtTime(
+                            rate * (0.8 + i * 0.1),
+                            this.audioCtx.currentTime,
+                        );
+                    });
+                    this.modGains.forEach((mg) => {
+                        mg.gain.gain.setValueAtTime(
+                            depth * mg.baseDelay,
+                            this.audioCtx.currentTime,
+                        );
+                    });
+                }
+            }
+
+            // ============================================================
             // AUDIO ENGINE
             // ============================================================
             class AudioEngine {
@@ -1715,7 +1961,7 @@
                     this.filter = null;
                     this.dryGain = null;
                     this.wetGain = null;
-                    this.convolver = null;
+                    this.reverb = null;
                     this.periodicWaves = [];
                     this.voices = new Map();
                     this.morphPosition = 0.5;
@@ -1728,7 +1974,7 @@
                     this.filterCutoff = 20000;
                     this.filterResonance = 0;
                     this.reverbMix = 0;
-                    this.reverbDecay = 2;
+                    this.reverbDecay = 0.5;
                     this.initialized = false;
                 }
 
@@ -1745,9 +1991,8 @@
                     this.filter.frequency.value = this.filterCutoff;
                     this.filter.Q.value = this.filterResonance;
 
-                    // Create reverb (convolver)
-                    this.convolver = this.audioCtx.createConvolver();
-                    this.generateReverbIR(this.reverbDecay);
+                    // Create shimmer reverb
+                    this.reverb = new ShimmerReverb(this.audioCtx);
 
                     // Dry/wet mix for reverb
                     this.dryGain = this.audioCtx.createGain();
@@ -1761,10 +2006,10 @@
 
                     // Signal routing:
                     // voices -> filter -> dryGain -> masterGain -> destination
-                    //                  -> convolver -> wetGain -> masterGain
+                    //                  -> reverb -> wetGain -> masterGain
                     this.filter.connect(this.dryGain);
-                    this.filter.connect(this.convolver);
-                    this.convolver.connect(this.wetGain);
+                    this.filter.connect(this.reverb.input);
+                    this.reverb.output.connect(this.wetGain);
                     this.dryGain.connect(this.masterGain);
                     this.wetGain.connect(this.masterGain);
                     this.masterGain.connect(this.audioCtx.destination);
@@ -1773,29 +2018,6 @@
 
                     this.initialized = true;
                     console.log("Audio engine initialized");
-                }
-
-                generateReverbIR(decay) {
-                    // Generate impulse response for reverb
-                    const sampleRate = this.audioCtx.sampleRate;
-                    const length = sampleRate * decay;
-                    const impulse = this.audioCtx.createBuffer(
-                        2,
-                        length,
-                        sampleRate,
-                    );
-
-                    for (let channel = 0; channel < 2; channel++) {
-                        const channelData = impulse.getChannelData(channel);
-                        for (let i = 0; i < length; i++) {
-                            // Exponential decay with random noise
-                            channelData[i] =
-                                (Math.random() * 2 - 1) *
-                                Math.pow(1 - i / length, decay);
-                        }
-                    }
-
-                    this.convolver.buffer = impulse;
                 }
 
                 setFilterCutoff(frequency) {
@@ -1833,9 +2055,11 @@
                 }
 
                 setReverbDecay(decay) {
+                    // decay slider 0.1-5 maps to 0-1 for reverb
                     this.reverbDecay = decay;
-                    if (this.convolver && this.audioCtx) {
-                        this.generateReverbIR(decay);
+                    if (this.reverb) {
+                        const normalized = Math.min(1, (decay - 0.1) / 4.9);
+                        this.reverb.setDecay(normalized);
                     }
                 }
 
