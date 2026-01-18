@@ -197,6 +197,32 @@
                 border-color: var(--text);
             }
 
+            .map-search .location-btn {
+                padding: 6px 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .map-search .location-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .map-search .location-btn.locating {
+                animation: pulse 1s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+            }
+
             #map {
                 flex: 1;
                 min-height: 0;
@@ -734,6 +760,23 @@
                             placeholder="Search location or coords (lat, lng)"
                         />
                         <button id="search-btn">Go</button>
+                        <button
+                            id="location-btn"
+                            class="location-btn"
+                            title="Use my location"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                            </svg>
+                        </button>
                     </div>
                     <div id="map"></div>
                     <div class="map-info">
@@ -3294,6 +3337,13 @@
                         .addEventListener("click", () => {
                             this.terrain3D.resetView();
                         });
+
+                    // My location button
+                    document
+                        .getElementById("location-btn")
+                        .addEventListener("click", () => {
+                            this.handleMyLocation();
+                        });
                 }
 
                 updateKeyboard() {
@@ -3375,6 +3425,43 @@
                             "error",
                         );
                     }
+                }
+
+                handleMyLocation() {
+                    if (!navigator.geolocation) {
+                        this.setStatus("Geolocation not supported", "error");
+                        return;
+                    }
+
+                    const btn = document.getElementById("location-btn");
+                    btn.classList.add("locating");
+                    this.setStatus("Finding your location...", "loading");
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            btn.classList.remove("locating");
+                            const { latitude, longitude } = position.coords;
+                            this.setStatus(`Found: Your location`);
+                            this.map.goTo(latitude, longitude, 12);
+                        },
+                        (error) => {
+                            btn.classList.remove("locating");
+                            let message = "Location error";
+                            switch (error.code) {
+                                case error.PERMISSION_DENIED:
+                                    message = "Location permission denied";
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    message = "Location unavailable";
+                                    break;
+                                case error.TIMEOUT:
+                                    message = "Location request timed out";
+                                    break;
+                            }
+                            this.setStatus(message, "error");
+                        },
+                        { enableHighAccuracy: true, timeout: 10000 },
+                    );
                 }
 
                 updateADSR() {
