@@ -3892,20 +3892,29 @@
 
                     this.currentLocation = null;
                     this.wavetableData = null;
-                    this.isLightMode = false;
+                    this.isLightMode = window.matchMedia(
+                        "(prefers-color-scheme: light)",
+                    ).matches;
                     this.isLoading = false;
                 }
 
                 async initialize() {
+                    // Apply initial theme based on system preference
+                    if (this.isLightMode) {
+                        document.body.classList.add("light-mode");
+                    }
+
                     // Initialize 3D terrain display
                     this.terrain3D = new Terrain3DDisplay(
                         document.getElementById("terrain-canvas"),
                     );
+                    this.terrain3D.setLightMode(this.isLightMode);
 
                     // Initialize waveform display
                     this.waveformDisplay = new WaveformDisplay(
                         document.getElementById("waveform-canvas"),
                     );
+                    this.waveformDisplay.setLightMode(this.isLightMode);
 
                     // Initialize map
                     this.map = new MapController("map", (lat, lng) =>
