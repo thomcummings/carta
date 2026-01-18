@@ -507,6 +507,34 @@
                 accent-color: var(--text);
             }
 
+            .play-btn {
+                background: none;
+                border: 1px solid var(--border);
+                color: var(--text);
+                width: 24px;
+                height: 24px;
+                padding: 4px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 2px;
+            }
+
+            .play-btn:hover {
+                border-color: var(--text);
+            }
+
+            .play-btn.playing {
+                background: var(--text);
+                color: var(--bg);
+            }
+
+            .play-btn svg {
+                width: 12px;
+                height: 12px;
+            }
+
             .fx-param {
                 display: flex;
                 flex-direction: column;
@@ -995,8 +1023,19 @@
                 </div>
                 <div class="fx-section">
                     <div class="section-title">
-                        <input type="checkbox" id="gen-enabled" />
-                        <label for="gen-enabled">Auto</label>
+                        <button
+                            id="gen-play-btn"
+                            class="play-btn"
+                            title="Play/Pause"
+                        >
+                            <svg
+                                id="gen-play-icon"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                            >
+                                <polygon points="5,3 19,12 5,21" />
+                            </svg>
+                        </button>
                     </div>
                     <div class="fx-param">
                         <label>BPM</label>
@@ -3546,14 +3585,25 @@
 
                     // Generative controls
                     document
-                        .getElementById("gen-enabled")
-                        .addEventListener("change", (e) => {
-                            if (e.target.checked) {
+                        .getElementById("gen-play-btn")
+                        .addEventListener("click", () => {
+                            const btn = document.getElementById("gen-play-btn");
+                            const icon =
+                                document.getElementById("gen-play-icon");
+                            if (btn.classList.contains("playing")) {
+                                // Stop
+                                btn.classList.remove("playing");
+                                icon.innerHTML =
+                                    '<polygon points="5,3 19,12 5,21"/>';
+                                this.sequencer.stop();
+                            } else {
+                                // Play
                                 this.audio.initialize().then(() => {
+                                    btn.classList.add("playing");
+                                    icon.innerHTML =
+                                        '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>';
                                     this.sequencer.start();
                                 });
-                            } else {
-                                this.sequencer.stop();
                             }
                         });
 
