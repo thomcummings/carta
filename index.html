@@ -453,6 +453,22 @@
                 min-width: 30px;
             }
 
+            #morph-control .mod-range-group {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            #morph-control .mod-range-group label {
+                font-size: 9px;
+                text-transform: uppercase;
+                color: var(--text-muted);
+            }
+
+            #morph-control .mod-range-group input[type="range"] {
+                width: 50px;
+            }
+
             /* Filter, Reverb & Generative controls - single row */
             #fx-controls {
                 display: flex;
@@ -889,6 +905,30 @@
                     <span class="mod-rate-value" id="morph-mod-rate-value"
                         >1.0</span
                     >
+                    <div class="mod-range-group">
+                        <label>Rng</label>
+                        <input
+                            type="range"
+                            id="morph-mod-range"
+                            min="0.01"
+                            max="1"
+                            step="0.01"
+                            value="1"
+                            title="Modulation Range"
+                        />
+                    </div>
+                    <div class="mod-range-group">
+                        <label>Ofs</label>
+                        <input
+                            type="range"
+                            id="morph-mod-offset"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0"
+                            title="Modulation Offset"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -2941,6 +2981,8 @@
                     this.onMorphChange = onMorphChange;
                     this.mode = "manual"; // manual, lfo, snh, midi-wheel, midi-velocity
                     this.rate = 1; // Hz
+                    this.range = 1; // 0-1, how much of the terrain to sweep
+                    this.offset = 0; // 0-1, starting point of modulation
                     this.animationId = null;
                     this.lastTime = 0;
                     this.phase = 0;
@@ -2988,7 +3030,8 @@
                         // LFO: smooth sine wave
                         this.phase += deltaTime * this.rate * Math.PI * 2;
                         if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
-                        newValue = (Math.sin(this.phase) + 1) / 2; // 0-1 range
+                        const rawValue = (Math.sin(this.phase) + 1) / 2; // 0-1 range
+                        newValue = this.applyRangeOffset(rawValue);
                         this.onMorphChange(newValue);
                     } else if (this.mode === "snh") {
                         // S&H: random value at rate intervals
@@ -2998,7 +3041,8 @@
                             this.snhLastTick = 0;
                             this.snhValue = Math.random();
                         }
-                        this.onMorphChange(this.snhValue);
+                        newValue = this.applyRangeOffset(this.snhValue);
+                        this.onMorphChange(newValue);
                     }
 
                     this.animationId = requestAnimationFrame(() => this.tick());
@@ -3006,6 +3050,22 @@
 
                 setRate(hz) {
                     this.rate = Math.max(0.1, hz);
+                }
+
+                setRange(range) {
+                    this.range = Math.max(0.01, Math.min(1, range));
+                }
+
+                setOffset(offset) {
+                    this.offset = Math.max(0, Math.min(1, offset));
+                }
+
+                // Apply range and offset to a 0-1 modulation value
+                applyRangeOffset(rawValue) {
+                    // rawValue is 0-1, scale it to range and shift by offset
+                    // Clamp result to 0-1
+                    const scaled = this.offset + rawValue * this.range;
+                    return Math.max(0, Math.min(1, scaled));
                 }
 
                 setBaseValue(value) {
@@ -3019,7 +3079,8 @@
                 setMidiWheel(value) {
                     this.midiWheelValue = value;
                     if (this.mode === "midi-wheel") {
-                        this.onMorphChange(value);
+                        const scaled = this.applyRangeOffset(value);
+                        this.onMorphChange(scaled);
                     }
                 }
 
@@ -3027,7 +3088,8 @@
                 setMidiVelocity(velocity) {
                     this.midiVelocityValue = velocity;
                     if (this.mode === "midi-velocity") {
-                        this.onMorphChange(velocity);
+                        const scaled = this.applyRangeOffset(velocity);
+                        this.onMorphChange(scaled);
                     }
                 }
 
@@ -3174,6 +3236,22 @@
                             document.getElementById(
                                 "morph-mod-rate-value",
                             ).textContent = value.toFixed(1);
+                        });
+
+                    // Modulation range and offset
+                    document
+                        .getElementById("morph-mod-range")
+                        .addEventListener("input", (e) => {
+                            this.morphModulator.setRange(
+                                parseFloat(e.target.value),
+                            );
+                        });
+                    document
+                        .getElementById("morph-mod-offset")
+                        .addEventListener("input", (e) => {
+                            this.morphModulator.setOffset(
+                                parseFloat(e.target.value),
+                            );
                         });
 
                     // Filter controls
