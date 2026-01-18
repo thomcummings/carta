@@ -712,6 +712,35 @@
             }
 
             /* ============================================================
+           CSS TOOLTIPS
+           ============================================================ */
+            [data-tooltip] {
+                position: relative;
+            }
+
+            [data-tooltip]::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                bottom: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                margin-bottom: 6px;
+                padding: 4px 8px;
+                background: var(--text);
+                color: var(--bg);
+                font-size: 10px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.15s;
+                z-index: 1001;
+            }
+
+            [data-tooltip]:hover::after {
+                opacity: 1;
+            }
+
+            /* ============================================================
            KEYBOARD SECTION
            ============================================================ */
             #keyboard {
@@ -879,7 +908,10 @@
                             id="search-input"
                             placeholder="Search location or coords (lat, lng)"
                         />
-                        <select id="area-size" title="Terrain sample area size">
+                        <select
+                            id="area-size"
+                            data-tooltip="Terrain sample area"
+                        >
                             <option value="5">5km</option>
                             <option value="10" selected>10km</option>
                             <option value="50">50km</option>
@@ -3085,8 +3117,9 @@
                     // Create wrapper
                     this.wrapper = document.createElement("div");
                     this.wrapper.className = "custom-select";
-                    if (this.select.title) {
-                        this.wrapper.title = this.select.title;
+                    if (this.select.dataset.tooltip) {
+                        this.wrapper.dataset.tooltip =
+                            this.select.dataset.tooltip;
                     }
 
                     // Create trigger button
