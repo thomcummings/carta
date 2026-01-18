@@ -317,6 +317,44 @@
                 gap: 12px;
             }
 
+            /* Scale controls row */
+            #scale-controls {
+                display: flex;
+                gap: 12px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            #scale-controls .control-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            #scale-controls label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                white-space: nowrap;
+            }
+
+            #scale-controls select {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 8px;
+                font-family: inherit;
+                font-size: 11px;
+                cursor: pointer;
+            }
+
+            #scale-controls select:focus {
+                outline: none;
+                border-color: var(--text-muted);
+            }
+
             /* Morph slider */
             #morph-control {
                 display: flex;
@@ -346,6 +384,67 @@
                 text-align: right;
             }
 
+            /* Morph modulation toggle */
+            #morph-control .mod-toggle {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            #morph-control .mod-toggle input[type="checkbox"] {
+                accent-color: var(--text);
+            }
+
+            #morph-control .mod-toggle label {
+                cursor: pointer;
+            }
+
+            #morph-control .mod-speed {
+                width: 60px;
+            }
+
+            /* Filter & Reverb controls */
+            #fx-controls {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 12px;
+            }
+
+            .fx-section {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .fx-section .section-title {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                margin-bottom: 4px;
+            }
+
+            .fx-param {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .fx-param label {
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-muted);
+            }
+
+            .fx-param .value {
+                font-size: 9px;
+                color: var(--text);
+            }
+
             /* ADSR controls */
             #adsr-controls {
                 display: grid;
@@ -372,6 +471,65 @@
             .adsr-param .value {
                 font-size: 10px;
                 color: var(--text);
+            }
+
+            /* Generative controls */
+            #generative-controls {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            #generative-controls .section-title {
+                width: 100%;
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            #generative-controls .section-title input[type="checkbox"] {
+                accent-color: var(--text);
+            }
+
+            .gen-param {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 80px;
+            }
+
+            .gen-param label {
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-muted);
+            }
+
+            .gen-param .value {
+                font-size: 9px;
+                color: var(--text);
+            }
+
+            .gen-param select {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 6px;
+                font-family: inherit;
+                font-size: 10px;
+                cursor: pointer;
+            }
+
+            .gen-param select:focus {
+                outline: none;
+                border-color: var(--text-muted);
             }
 
             /* ============================================================
@@ -625,6 +783,41 @@
                 </section>
             </main>
 
+            <!-- Scale controls -->
+            <div id="scale-controls">
+                <div class="control-group">
+                    <label for="root-note">Root</label>
+                    <select id="root-note">
+                        <option value="C">C</option>
+                        <option value="C#">C#</option>
+                        <option value="D">D</option>
+                        <option value="D#">D#</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F#</option>
+                        <option value="G">G</option>
+                        <option value="G#">G#</option>
+                        <option value="A">A</option>
+                        <option value="A#">A#</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="scale-type">Scale</label>
+                    <select id="scale-type">
+                        <option value="chromatic">Chromatic</option>
+                        <option value="major">Major</option>
+                        <option value="minor">Minor</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="blues">Blues</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="phrygian">Phrygian</option>
+                        <option value="lydian">Lydian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Morph control -->
             <div id="morph-control">
                 <label for="morph-slider">Morph N↔S</label>
@@ -637,6 +830,151 @@
                     value="0.5"
                 />
                 <span class="morph-value" id="morph-value">0.50</span>
+                <div class="mod-toggle">
+                    <input type="checkbox" id="morph-random" />
+                    <label for="morph-random">S&H</label>
+                </div>
+                <input
+                    type="range"
+                    id="morph-speed"
+                    class="mod-speed"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value="2"
+                    title="S&H Rate (Hz)"
+                />
+            </div>
+
+            <!-- Filter & Reverb -->
+            <div id="fx-controls">
+                <div class="fx-section">
+                    <span class="section-title">Filter</span>
+                    <div class="fx-param">
+                        <label for="filter-cutoff">Cutoff</label>
+                        <input
+                            type="range"
+                            id="filter-cutoff"
+                            min="20"
+                            max="20000"
+                            step="1"
+                            value="20000"
+                        />
+                        <span class="value" id="filter-cutoff-value"
+                            >20kHz</span
+                        >
+                    </div>
+                    <div class="fx-param">
+                        <label for="filter-resonance">Resonance</label>
+                        <input
+                            type="range"
+                            id="filter-resonance"
+                            min="0"
+                            max="20"
+                            step="0.1"
+                            value="0"
+                        />
+                        <span class="value" id="filter-resonance-value"
+                            >0.0</span
+                        >
+                    </div>
+                </div>
+                <div class="fx-section">
+                    <span class="section-title">Reverb</span>
+                    <div class="fx-param">
+                        <label for="reverb-mix">Mix</label>
+                        <input
+                            type="range"
+                            id="reverb-mix"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0"
+                        />
+                        <span class="value" id="reverb-mix-value">0%</span>
+                    </div>
+                    <div class="fx-param">
+                        <label for="reverb-decay">Decay</label>
+                        <input
+                            type="range"
+                            id="reverb-decay"
+                            min="0.1"
+                            max="5"
+                            step="0.1"
+                            value="2"
+                        />
+                        <span class="value" id="reverb-decay-value">2.0s</span>
+                    </div>
+                </div>
+                <div class="fx-section" id="generative-controls">
+                    <div class="section-title">
+                        <input type="checkbox" id="gen-enabled" />
+                        <label for="gen-enabled">Autoplay</label>
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-bpm">BPM</label>
+                        <input
+                            type="range"
+                            id="gen-bpm"
+                            min="30"
+                            max="240"
+                            step="1"
+                            value="120"
+                        />
+                        <span class="value" id="gen-bpm-value">120</span>
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-probability">Prob</label>
+                        <input
+                            type="range"
+                            id="gen-probability"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value="0.7"
+                        />
+                        <span class="value" id="gen-probability-value"
+                            >70%</span
+                        >
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-octave-low">Oct Lo</label>
+                        <select id="gen-octave-low">
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4" selected>4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-octave-high">Oct Hi</label>
+                        <select id="gen-octave-high">
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5" selected>5</option>
+                            <option value="6">6</option>
+                        </select>
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-length">Length</label>
+                        <select id="gen-length">
+                            <option value="0.25">1/16</option>
+                            <option value="0.5">1/8</option>
+                            <option value="1" selected>1/4</option>
+                            <option value="2">1/2</option>
+                            <option value="4">1</option>
+                        </select>
+                    </div>
+                    <div class="gen-param">
+                        <label for="gen-pattern">Pattern</label>
+                        <select id="gen-pattern">
+                            <option value="random">Random</option>
+                            <option value="ascending">Ascending</option>
+                            <option value="descending">Descending</option>
+                            <option value="pendulum">Pendulum</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- ADSR controls -->
@@ -1287,6 +1625,10 @@
                 constructor() {
                     this.audioCtx = null;
                     this.masterGain = null;
+                    this.filter = null;
+                    this.dryGain = null;
+                    this.wetGain = null;
+                    this.convolver = null;
                     this.periodicWaves = [];
                     this.voices = new Map();
                     this.morphPosition = 0.5;
@@ -1296,6 +1638,10 @@
                         sustain: 0.7,
                         release: 0.3,
                     };
+                    this.filterCutoff = 20000;
+                    this.filterResonance = 0;
+                    this.reverbMix = 0;
+                    this.reverbDecay = 2;
                     this.initialized = false;
                 }
 
@@ -1305,14 +1651,105 @@
                     this.audioCtx = new (
                         window.AudioContext || window.webkitAudioContext
                     )();
+
+                    // Create filter (low-pass)
+                    this.filter = this.audioCtx.createBiquadFilter();
+                    this.filter.type = "lowpass";
+                    this.filter.frequency.value = this.filterCutoff;
+                    this.filter.Q.value = this.filterResonance;
+
+                    // Create reverb (convolver)
+                    this.convolver = this.audioCtx.createConvolver();
+                    this.generateReverbIR(this.reverbDecay);
+
+                    // Dry/wet mix for reverb
+                    this.dryGain = this.audioCtx.createGain();
+                    this.wetGain = this.audioCtx.createGain();
+                    this.dryGain.gain.value = 1;
+                    this.wetGain.gain.value = 0;
+
+                    // Master gain
                     this.masterGain = this.audioCtx.createGain();
                     this.masterGain.gain.value = 0.7;
+
+                    // Signal routing:
+                    // voices -> filter -> dryGain -> masterGain -> destination
+                    //                  -> convolver -> wetGain -> masterGain
+                    this.filter.connect(this.dryGain);
+                    this.filter.connect(this.convolver);
+                    this.convolver.connect(this.wetGain);
+                    this.dryGain.connect(this.masterGain);
+                    this.wetGain.connect(this.masterGain);
                     this.masterGain.connect(this.audioCtx.destination);
 
                     this.loadDefaultWave();
 
                     this.initialized = true;
                     console.log("Audio engine initialized");
+                }
+
+                generateReverbIR(decay) {
+                    // Generate impulse response for reverb
+                    const sampleRate = this.audioCtx.sampleRate;
+                    const length = sampleRate * decay;
+                    const impulse = this.audioCtx.createBuffer(
+                        2,
+                        length,
+                        sampleRate,
+                    );
+
+                    for (let channel = 0; channel < 2; channel++) {
+                        const channelData = impulse.getChannelData(channel);
+                        for (let i = 0; i < length; i++) {
+                            // Exponential decay with random noise
+                            channelData[i] =
+                                (Math.random() * 2 - 1) *
+                                Math.pow(1 - i / length, decay);
+                        }
+                    }
+
+                    this.convolver.buffer = impulse;
+                }
+
+                setFilterCutoff(frequency) {
+                    this.filterCutoff = frequency;
+                    if (this.filter) {
+                        this.filter.frequency.setValueAtTime(
+                            frequency,
+                            this.audioCtx.currentTime,
+                        );
+                    }
+                }
+
+                setFilterResonance(q) {
+                    this.filterResonance = q;
+                    if (this.filter) {
+                        this.filter.Q.setValueAtTime(
+                            q,
+                            this.audioCtx.currentTime,
+                        );
+                    }
+                }
+
+                setReverbMix(mix) {
+                    this.reverbMix = mix;
+                    if (this.dryGain && this.wetGain) {
+                        this.dryGain.gain.setValueAtTime(
+                            1 - mix * 0.5,
+                            this.audioCtx.currentTime,
+                        );
+                        this.wetGain.gain.setValueAtTime(
+                            mix,
+                            this.audioCtx.currentTime,
+                        );
+                    }
+                }
+
+                setReverbDecay(decay) {
+                    this.reverbDecay = decay;
+                    if (this.convolver && this.audioCtx) {
+                        this.generateReverbIR(decay);
+                    }
                 }
 
                 loadDefaultWave() {
@@ -1396,7 +1833,8 @@
                     gainA.connect(envGain);
                     gainB.connect(envGain);
                     envGain.connect(velGain);
-                    velGain.connect(this.masterGain);
+                    // Connect to filter (which then goes to reverb/master)
+                    velGain.connect(this.filter);
 
                     oscA.frequency.value = frequency;
                     oscB.frequency.value = frequency;
@@ -2193,6 +2631,305 @@
             }
 
             // ============================================================
+            // SCALE MANAGER
+            // ============================================================
+            class ScaleManager {
+                constructor() {
+                    // Semitone intervals from root for each scale
+                    this.scales = {
+                        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                        major: [0, 2, 4, 5, 7, 9, 11],
+                        minor: [0, 2, 3, 5, 7, 8, 10],
+                        pentatonic: [0, 2, 4, 7, 9],
+                        blues: [0, 3, 5, 6, 7, 10],
+                        dorian: [0, 2, 3, 5, 7, 9, 10],
+                        phrygian: [0, 1, 3, 5, 7, 8, 10],
+                        lydian: [0, 2, 4, 6, 7, 9, 11],
+                        mixolydian: [0, 2, 4, 5, 7, 9, 10],
+                    };
+
+                    // Note name to semitone offset from C
+                    this.noteOffsets = {
+                        C: 0,
+                        "C#": 1,
+                        D: 2,
+                        "D#": 3,
+                        E: 4,
+                        F: 5,
+                        "F#": 6,
+                        G: 7,
+                        "G#": 8,
+                        A: 9,
+                        "A#": 10,
+                        B: 11,
+                    };
+
+                    this.rootNote = "C";
+                    this.scaleType = "chromatic";
+                }
+
+                setRoot(note) {
+                    this.rootNote = note;
+                }
+
+                setScale(scaleType) {
+                    this.scaleType = scaleType;
+                }
+
+                /**
+                 * Get all notes in scale across a given octave range
+                 * Returns array of { note: 'C4', frequency: 261.63 }
+                 */
+                getNotesInRange(octaveLow, octaveHigh) {
+                    const notes = [];
+                    const rootOffset = this.noteOffsets[this.rootNote];
+                    const intervals = this.scales[this.scaleType];
+                    const noteNames = [
+                        "C",
+                        "C#",
+                        "D",
+                        "D#",
+                        "E",
+                        "F",
+                        "F#",
+                        "G",
+                        "G#",
+                        "A",
+                        "A#",
+                        "B",
+                    ];
+
+                    for (
+                        let octave = octaveLow;
+                        octave <= octaveHigh;
+                        octave++
+                    ) {
+                        for (const interval of intervals) {
+                            const semitone = rootOffset + interval;
+                            const actualOctave =
+                                octave + Math.floor(semitone / 12);
+                            const noteIndex = semitone % 12;
+                            const noteName = noteNames[noteIndex];
+                            const midiNote = 12 + actualOctave * 12 + noteIndex;
+                            const frequency =
+                                440 * Math.pow(2, (midiNote - 69) / 12);
+
+                            // Only include if within our octave range
+                            if (
+                                actualOctave >= octaveLow &&
+                                actualOctave <= octaveHigh
+                            ) {
+                                notes.push({
+                                    note: `${noteName}${actualOctave}`,
+                                    frequency,
+                                    midiNote,
+                                });
+                            }
+                        }
+                    }
+
+                    // Remove duplicates and sort by frequency
+                    const seen = new Set();
+                    return notes
+                        .filter((n) => {
+                            if (seen.has(n.note)) return false;
+                            seen.add(n.note);
+                            return true;
+                        })
+                        .sort((a, b) => a.frequency - b.frequency);
+                }
+
+                /**
+                 * Get notes for keyboard display (fixed keys, mapped to scale)
+                 */
+                getKeyboardNotes() {
+                    const notes = this.getNotesInRange(4, 5);
+                    // Return up to 11 notes for the keyboard keys
+                    return notes.slice(0, 11);
+                }
+            }
+
+            // ============================================================
+            // GENERATIVE SEQUENCER
+            // ============================================================
+            class GenerativeSequencer {
+                constructor(onNoteOn, onNoteOff) {
+                    this.onNoteOn = onNoteOn;
+                    this.onNoteOff = onNoteOff;
+                    this.enabled = false;
+                    this.bpm = 120;
+                    this.probability = 0.7;
+                    this.octaveLow = 4;
+                    this.octaveHigh = 5;
+                    this.noteLength = 1; // in beats
+                    this.pattern = "random";
+
+                    this.scaleManager = null;
+                    this.currentNoteIndex = 0;
+                    this.pendulumDirection = 1;
+                    this.intervalId = null;
+                    this.activeNote = null;
+                }
+
+                setScaleManager(scaleManager) {
+                    this.scaleManager = scaleManager;
+                }
+
+                start() {
+                    if (this.intervalId) return;
+                    this.enabled = true;
+                    this.scheduleNext();
+                }
+
+                stop() {
+                    this.enabled = false;
+                    if (this.intervalId) {
+                        clearTimeout(this.intervalId);
+                        this.intervalId = null;
+                    }
+                    if (this.activeNote) {
+                        this.onNoteOff(this.activeNote.id);
+                        this.activeNote = null;
+                    }
+                }
+
+                scheduleNext() {
+                    if (!this.enabled) return;
+
+                    const beatDuration = 60000 / this.bpm;
+                    const noteDuration = beatDuration * this.noteLength;
+
+                    // Decide whether to play (probability check)
+                    if (Math.random() < this.probability) {
+                        this.playNote();
+                    }
+
+                    // Schedule next beat
+                    this.intervalId = setTimeout(() => {
+                        if (this.activeNote) {
+                            this.onNoteOff(this.activeNote.id);
+                            this.activeNote = null;
+                        }
+                        this.scheduleNext();
+                    }, noteDuration);
+                }
+
+                playNote() {
+                    if (!this.scaleManager) return;
+
+                    const notes = this.scaleManager.getNotesInRange(
+                        this.octaveLow,
+                        this.octaveHigh,
+                    );
+                    if (notes.length === 0) return;
+
+                    let note;
+                    switch (this.pattern) {
+                        case "random":
+                            note =
+                                notes[Math.floor(Math.random() * notes.length)];
+                            break;
+                        case "ascending":
+                            note = notes[this.currentNoteIndex % notes.length];
+                            this.currentNoteIndex++;
+                            break;
+                        case "descending":
+                            note =
+                                notes[
+                                    notes.length -
+                                        1 -
+                                        (this.currentNoteIndex % notes.length)
+                                ];
+                            this.currentNoteIndex++;
+                            break;
+                        case "pendulum":
+                            note = notes[this.currentNoteIndex];
+                            this.currentNoteIndex += this.pendulumDirection;
+                            if (this.currentNoteIndex >= notes.length - 1) {
+                                this.pendulumDirection = -1;
+                                this.currentNoteIndex = notes.length - 1;
+                            } else if (this.currentNoteIndex <= 0) {
+                                this.pendulumDirection = 1;
+                                this.currentNoteIndex = 0;
+                            }
+                            break;
+                    }
+
+                    if (note) {
+                        const id = `gen_${Date.now()}`;
+                        this.activeNote = { id, note };
+                        this.onNoteOn(id, note.frequency, 0.7);
+                    }
+                }
+
+                setBPM(bpm) {
+                    this.bpm = bpm;
+                }
+
+                setProbability(prob) {
+                    this.probability = prob;
+                }
+
+                setOctaveRange(low, high) {
+                    this.octaveLow = low;
+                    this.octaveHigh = high;
+                    this.currentNoteIndex = 0;
+                }
+
+                setNoteLength(beats) {
+                    this.noteLength = beats;
+                }
+
+                setPattern(pattern) {
+                    this.pattern = pattern;
+                    this.currentNoteIndex = 0;
+                    this.pendulumDirection = 1;
+                }
+            }
+
+            // ============================================================
+            // MORPH MODULATOR (S&H Random)
+            // ============================================================
+            class MorphModulator {
+                constructor(onMorphChange) {
+                    this.onMorphChange = onMorphChange;
+                    this.enabled = false;
+                    this.rate = 2; // Hz
+                    this.intervalId = null;
+                }
+
+                start() {
+                    if (this.intervalId) return;
+                    this.enabled = true;
+                    this.tick();
+                }
+
+                stop() {
+                    this.enabled = false;
+                    if (this.intervalId) {
+                        clearTimeout(this.intervalId);
+                        this.intervalId = null;
+                    }
+                }
+
+                tick() {
+                    if (!this.enabled) return;
+
+                    // Sample & Hold: pick random value
+                    const newValue = Math.random();
+                    this.onMorphChange(newValue);
+
+                    // Schedule next tick
+                    const interval = 1000 / this.rate;
+                    this.intervalId = setTimeout(() => this.tick(), interval);
+                }
+
+                setRate(hz) {
+                    this.rate = Math.max(0.1, hz);
+                }
+            }
+
+            // ============================================================
             // APPLICATION
             // ============================================================
             class App {
@@ -2200,11 +2937,14 @@
                     this.terrain = new TerrainService();
                     this.search = new SearchService();
                     this.audio = new AudioEngine();
+                    this.scaleManager = new ScaleManager();
                     this.midi = null;
                     this.waveformDisplay = null;
                     this.terrain3D = null;
                     this.map = null;
                     this.keyboard = null;
+                    this.sequencer = null;
+                    this.morphModulator = null;
 
                     this.currentLocation = null;
                     this.wavetableData = null;
@@ -2245,8 +2985,26 @@
                     );
                     await this.midi.initialize();
 
+                    // Initialize generative sequencer
+                    this.sequencer = new GenerativeSequencer(
+                        (id, freq, vel) => this.noteOn(id, freq, vel),
+                        (id) => this.noteOff(id),
+                    );
+                    this.sequencer.setScaleManager(this.scaleManager);
+
+                    // Initialize morph modulator
+                    this.morphModulator = new MorphModulator((value) => {
+                        this.setMorphPosition(value);
+                        document.getElementById("morph-slider").value = value;
+                        document.getElementById("morph-value").textContent =
+                            value.toFixed(2);
+                    });
+
                     // Bind UI controls
                     this.bindControls();
+
+                    // Update keyboard with initial scale
+                    this.updateKeyboard();
 
                     this.setStatus("Click map to load terrain");
                 }
@@ -2261,6 +3019,20 @@
                             );
                         });
 
+                    // Scale controls
+                    document
+                        .getElementById("root-note")
+                        .addEventListener("change", (e) => {
+                            this.scaleManager.setRoot(e.target.value);
+                            this.updateKeyboard();
+                        });
+                    document
+                        .getElementById("scale-type")
+                        .addEventListener("change", (e) => {
+                            this.scaleManager.setScale(e.target.value);
+                            this.updateKeyboard();
+                        });
+
                     // Morph slider
                     const morphSlider = document.getElementById("morph-slider");
                     const morphValue = document.getElementById("morph-value");
@@ -2269,6 +3041,143 @@
                         morphValue.textContent = value.toFixed(2);
                         this.setMorphPosition(value);
                     });
+
+                    // Morph S&H modulation
+                    document
+                        .getElementById("morph-random")
+                        .addEventListener("change", (e) => {
+                            if (e.target.checked) {
+                                this.morphModulator.start();
+                            } else {
+                                this.morphModulator.stop();
+                            }
+                        });
+                    document
+                        .getElementById("morph-speed")
+                        .addEventListener("input", (e) => {
+                            this.morphModulator.setRate(
+                                parseFloat(e.target.value),
+                            );
+                        });
+
+                    // Filter controls
+                    const filterCutoff =
+                        document.getElementById("filter-cutoff");
+                    const filterCutoffValue = document.getElementById(
+                        "filter-cutoff-value",
+                    );
+                    filterCutoff.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setFilterCutoff(value);
+                        filterCutoffValue.textContent =
+                            value >= 1000
+                                ? `${(value / 1000).toFixed(1)}kHz`
+                                : `${Math.round(value)}Hz`;
+                    });
+
+                    const filterResonance =
+                        document.getElementById("filter-resonance");
+                    const filterResonanceValue = document.getElementById(
+                        "filter-resonance-value",
+                    );
+                    filterResonance.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setFilterResonance(value);
+                        filterResonanceValue.textContent = value.toFixed(1);
+                    });
+
+                    // Reverb controls
+                    const reverbMix = document.getElementById("reverb-mix");
+                    const reverbMixValue =
+                        document.getElementById("reverb-mix-value");
+                    reverbMix.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbMix(value);
+                        reverbMixValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    const reverbDecay = document.getElementById("reverb-decay");
+                    const reverbDecayValue =
+                        document.getElementById("reverb-decay-value");
+                    reverbDecay.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbDecay(value);
+                        reverbDecayValue.textContent = `${value.toFixed(1)}s`;
+                    });
+
+                    // Generative controls
+                    document
+                        .getElementById("gen-enabled")
+                        .addEventListener("change", (e) => {
+                            if (e.target.checked) {
+                                this.audio.initialize().then(() => {
+                                    this.sequencer.start();
+                                });
+                            } else {
+                                this.sequencer.stop();
+                            }
+                        });
+
+                    const genBpm = document.getElementById("gen-bpm");
+                    const genBpmValue =
+                        document.getElementById("gen-bpm-value");
+                    genBpm.addEventListener("input", (e) => {
+                        const value = parseInt(e.target.value);
+                        this.sequencer.setBPM(value);
+                        genBpmValue.textContent = value;
+                    });
+
+                    const genProbability =
+                        document.getElementById("gen-probability");
+                    const genProbabilityValue = document.getElementById(
+                        "gen-probability-value",
+                    );
+                    genProbability.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.sequencer.setProbability(value);
+                        genProbabilityValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    document
+                        .getElementById("gen-octave-low")
+                        .addEventListener("change", (e) => {
+                            const low = parseInt(e.target.value);
+                            const high = parseInt(
+                                document.getElementById("gen-octave-high")
+                                    .value,
+                            );
+                            this.sequencer.setOctaveRange(
+                                low,
+                                Math.max(low, high),
+                            );
+                        });
+
+                    document
+                        .getElementById("gen-octave-high")
+                        .addEventListener("change", (e) => {
+                            const high = parseInt(e.target.value);
+                            const low = parseInt(
+                                document.getElementById("gen-octave-low").value,
+                            );
+                            this.sequencer.setOctaveRange(
+                                Math.min(low, high),
+                                high,
+                            );
+                        });
+
+                    document
+                        .getElementById("gen-length")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setNoteLength(
+                                parseFloat(e.target.value),
+                            );
+                        });
+
+                    document
+                        .getElementById("gen-pattern")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setPattern(e.target.value);
+                        });
 
                     // ADSR sliders
                     ["attack", "decay", "sustain", "release"].forEach(
@@ -2312,6 +3221,52 @@
                         .addEventListener("click", () => {
                             this.terrain3D.resetView();
                         });
+                }
+
+                updateKeyboard() {
+                    const notes = this.scaleManager.getKeyboardNotes();
+                    const keys = [
+                        "a",
+                        "s",
+                        "d",
+                        "f",
+                        "g",
+                        "h",
+                        "j",
+                        "k",
+                        "l",
+                        ";",
+                        "'",
+                    ];
+                    const keyElements = document.querySelectorAll(".key");
+
+                    keyElements.forEach((el, i) => {
+                        if (i < notes.length) {
+                            const note = notes[i];
+                            el.dataset.freq = note.frequency;
+                            el.dataset.note = note.note;
+                            el.querySelector(".key-note").textContent =
+                                note.note;
+                            el.style.display = "";
+                        } else {
+                            // Hide keys that don't have notes in this scale
+                            el.style.display = "none";
+                        }
+                    });
+
+                    // Update keyboard input mapping
+                    if (this.keyboard) {
+                        this.keyboard.keyMap.clear();
+                        keyElements.forEach((el, i) => {
+                            if (i < notes.length) {
+                                const key = keys[i];
+                                this.keyboard.keyMap.set(key, {
+                                    element: el,
+                                    frequency: notes[i].frequency,
+                                });
+                            }
+                        });
+                    }
                 }
 
                 toggleTheme() {
