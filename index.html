@@ -61,13 +61,19 @@
            APP LAYOUT
            ============================================================ */
             #app {
-                display: grid;
-                grid-template-rows: auto 1fr auto auto auto auto;
+                display: flex;
+                flex-direction: column;
                 height: 100vh;
                 max-width: 1400px;
                 margin: 0 auto;
                 padding: 16px;
-                gap: 12px;
+                gap: 8px;
+                overflow-y: auto;
+            }
+
+            main {
+                flex: 1;
+                min-height: 300px;
             }
 
             /* ============================================================
@@ -403,20 +409,27 @@
                 width: 60px;
             }
 
-            /* Filter & Reverb controls */
+            /* Filter, Reverb & Generative controls - single row */
             #fx-controls {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
+                display: flex;
                 gap: 12px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                flex-wrap: wrap;
             }
 
             .fx-section {
                 display: flex;
-                flex-direction: column;
-                gap: 8px;
-                padding: 12px;
-                background: var(--surface);
-                border: 1px solid var(--border);
+                align-items: center;
+                gap: 12px;
+                padding-right: 16px;
+                border-right: 1px solid var(--border);
+            }
+
+            .fx-section:last-child {
+                border-right: none;
+                padding-right: 0;
             }
 
             .fx-section .section-title {
@@ -424,13 +437,21 @@
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
                 color: var(--text-muted);
-                margin-bottom: 4px;
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .fx-section .section-title input[type="checkbox"] {
+                accent-color: var(--text);
             }
 
             .fx-param {
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: 2px;
+                min-width: 60px;
             }
 
             .fx-param label {
@@ -443,6 +464,20 @@
             .fx-param .value {
                 font-size: 9px;
                 color: var(--text);
+            }
+
+            .fx-param input[type="range"] {
+                width: 60px;
+            }
+
+            .fx-param select {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 2px 4px;
+                font-family: inherit;
+                font-size: 9px;
+                cursor: pointer;
             }
 
             /* ADSR controls */
@@ -471,65 +506,6 @@
             .adsr-param .value {
                 font-size: 10px;
                 color: var(--text);
-            }
-
-            /* Generative controls */
-            #generative-controls {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                padding: 12px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-            }
-
-            #generative-controls .section-title {
-                width: 100%;
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--text-muted);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-
-            #generative-controls .section-title input[type="checkbox"] {
-                accent-color: var(--text);
-            }
-
-            .gen-param {
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-                min-width: 80px;
-            }
-
-            .gen-param label {
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--text-muted);
-            }
-
-            .gen-param .value {
-                font-size: 9px;
-                color: var(--text);
-            }
-
-            .gen-param select {
-                background: var(--bg);
-                border: 1px solid var(--border);
-                color: var(--text);
-                padding: 4px 6px;
-                font-family: inherit;
-                font-size: 10px;
-                cursor: pointer;
-            }
-
-            .gen-param select:focus {
-                outline: none;
-                border-color: var(--text-muted);
             }
 
             /* ============================================================
@@ -846,12 +822,12 @@
                 />
             </div>
 
-            <!-- Filter & Reverb -->
+            <!-- Filter, Reverb & Autoplay -->
             <div id="fx-controls">
                 <div class="fx-section">
                     <span class="section-title">Filter</span>
                     <div class="fx-param">
-                        <label for="filter-cutoff">Cutoff</label>
+                        <label>Cut</label>
                         <input
                             type="range"
                             id="filter-cutoff"
@@ -865,7 +841,7 @@
                         >
                     </div>
                     <div class="fx-param">
-                        <label for="filter-resonance">Resonance</label>
+                        <label>Res</label>
                         <input
                             type="range"
                             id="filter-resonance"
@@ -882,7 +858,7 @@
                 <div class="fx-section">
                     <span class="section-title">Reverb</span>
                     <div class="fx-param">
-                        <label for="reverb-mix">Mix</label>
+                        <label>Mix</label>
                         <input
                             type="range"
                             id="reverb-mix"
@@ -894,7 +870,7 @@
                         <span class="value" id="reverb-mix-value">0%</span>
                     </div>
                     <div class="fx-param">
-                        <label for="reverb-decay">Decay</label>
+                        <label>Decay</label>
                         <input
                             type="range"
                             id="reverb-decay"
@@ -906,13 +882,13 @@
                         <span class="value" id="reverb-decay-value">2.0s</span>
                     </div>
                 </div>
-                <div class="fx-section" id="generative-controls">
+                <div class="fx-section">
                     <div class="section-title">
                         <input type="checkbox" id="gen-enabled" />
-                        <label for="gen-enabled">Autoplay</label>
+                        <label for="gen-enabled">Auto</label>
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-bpm">BPM</label>
+                    <div class="fx-param">
+                        <label>BPM</label>
                         <input
                             type="range"
                             id="gen-bpm"
@@ -923,8 +899,8 @@
                         />
                         <span class="value" id="gen-bpm-value">120</span>
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-probability">Prob</label>
+                    <div class="fx-param">
+                        <label>Prob</label>
                         <input
                             type="range"
                             id="gen-probability"
@@ -937,8 +913,8 @@
                             >70%</span
                         >
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-octave-low">Oct Lo</label>
+                    <div class="fx-param">
+                        <label>Oct</label>
                         <select id="gen-octave-low">
                             <option value="2">2</option>
                             <option value="3">3</option>
@@ -946,8 +922,8 @@
                             <option value="5">5</option>
                         </select>
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-octave-high">Oct Hi</label>
+                    <div class="fx-param">
+                        <label>-</label>
                         <select id="gen-octave-high">
                             <option value="3">3</option>
                             <option value="4">4</option>
@@ -955,8 +931,8 @@
                             <option value="6">6</option>
                         </select>
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-length">Length</label>
+                    <div class="fx-param">
+                        <label>Len</label>
                         <select id="gen-length">
                             <option value="0.25">1/16</option>
                             <option value="0.5">1/8</option>
@@ -965,13 +941,13 @@
                             <option value="4">1</option>
                         </select>
                     </div>
-                    <div class="gen-param">
-                        <label for="gen-pattern">Pattern</label>
+                    <div class="fx-param">
+                        <label>Pat</label>
                         <select id="gen-pattern">
-                            <option value="random">Random</option>
-                            <option value="ascending">Ascending</option>
-                            <option value="descending">Descending</option>
-                            <option value="pendulum">Pendulum</option>
+                            <option value="random">Rnd</option>
+                            <option value="ascending">Up</option>
+                            <option value="descending">Dn</option>
+                            <option value="pendulum">Pnd</option>
                         </select>
                     </div>
                 </div>
