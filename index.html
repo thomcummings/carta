@@ -390,23 +390,41 @@
                 text-align: right;
             }
 
-            /* Morph modulation toggle */
-            #morph-control .mod-toggle {
+            /* Morph modulation section */
+            #morph-control .mod-section {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
+                margin-left: 12px;
+                padding-left: 12px;
+                border-left: 1px solid var(--border);
             }
 
-            #morph-control .mod-toggle input[type="checkbox"] {
-                accent-color: var(--text);
+            #morph-control .mod-section label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
             }
 
-            #morph-control .mod-toggle label {
+            #morph-control .mod-section select {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 8px;
+                font-family: inherit;
+                font-size: 10px;
                 cursor: pointer;
             }
 
-            #morph-control .mod-speed {
+            #morph-control .mod-rate {
                 width: 60px;
+            }
+
+            #morph-control .mod-rate-value {
+                font-size: 10px;
+                color: var(--text-muted);
+                min-width: 30px;
             }
 
             /* Filter, Reverb & Generative controls - single row */
@@ -806,20 +824,29 @@
                     value="0.5"
                 />
                 <span class="morph-value" id="morph-value">0.50</span>
-                <div class="mod-toggle">
-                    <input type="checkbox" id="morph-random" />
-                    <label for="morph-random">S&H</label>
+                <div class="mod-section">
+                    <label for="morph-mod-source">Mod</label>
+                    <select id="morph-mod-source">
+                        <option value="manual">Manual</option>
+                        <option value="lfo">LFO</option>
+                        <option value="snh">S&H</option>
+                        <option value="midi-wheel">MW</option>
+                        <option value="midi-velocity">Vel</option>
+                    </select>
+                    <input
+                        type="range"
+                        id="morph-mod-rate"
+                        class="mod-rate"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value="1"
+                        title="Modulation Rate (Hz)"
+                    />
+                    <span class="mod-rate-value" id="morph-mod-rate-value"
+                        >1.0</span
+                    >
                 </div>
-                <input
-                    type="range"
-                    id="morph-speed"
-                    class="mod-speed"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    value="2"
-                    title="S&H Rate (Hz)"
-                />
             </div>
 
             <!-- Filter, Reverb & Autoplay -->
@@ -2864,44 +2891,105 @@
             }
 
             // ============================================================
-            // MORPH MODULATOR (S&H Random)
+            // MORPH MODULATOR (LFO, S&H, MIDI)
             // ============================================================
             class MorphModulator {
                 constructor(onMorphChange) {
                     this.onMorphChange = onMorphChange;
-                    this.enabled = false;
-                    this.rate = 2; // Hz
-                    this.intervalId = null;
+                    this.mode = "manual"; // manual, lfo, snh, midi-wheel, midi-velocity
+                    this.rate = 1; // Hz
+                    this.animationId = null;
+                    this.lastTime = 0;
+                    this.phase = 0;
+                    this.snhValue = 0.5;
+                    this.snhLastTick = 0;
+                    this.midiWheelValue = 0.5;
+                    this.midiVelocityValue = 0.5;
+                    this.baseValue = 0.5; // manual slider value
+                }
+
+                setMode(mode) {
+                    this.mode = mode;
+                    if (
+                        mode === "manual" ||
+                        mode === "midi-wheel" ||
+                        mode === "midi-velocity"
+                    ) {
+                        this.stop();
+                    } else {
+                        this.start();
+                    }
                 }
 
                 start() {
-                    if (this.intervalId) return;
-                    this.enabled = true;
+                    if (this.animationId) return;
+                    this.lastTime = performance.now();
                     this.tick();
                 }
 
                 stop() {
-                    this.enabled = false;
-                    if (this.intervalId) {
-                        clearTimeout(this.intervalId);
-                        this.intervalId = null;
+                    if (this.animationId) {
+                        cancelAnimationFrame(this.animationId);
+                        this.animationId = null;
                     }
                 }
 
                 tick() {
-                    if (!this.enabled) return;
+                    const now = performance.now();
+                    const deltaTime = (now - this.lastTime) / 1000;
+                    this.lastTime = now;
 
-                    // Sample & Hold: pick random value
-                    const newValue = Math.random();
-                    this.onMorphChange(newValue);
+                    let newValue = this.baseValue;
 
-                    // Schedule next tick
-                    const interval = 1000 / this.rate;
-                    this.intervalId = setTimeout(() => this.tick(), interval);
+                    if (this.mode === "lfo") {
+                        // LFO: smooth sine wave
+                        this.phase += deltaTime * this.rate * Math.PI * 2;
+                        if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
+                        newValue = (Math.sin(this.phase) + 1) / 2; // 0-1 range
+                        this.onMorphChange(newValue);
+                    } else if (this.mode === "snh") {
+                        // S&H: random value at rate intervals
+                        this.snhLastTick += deltaTime;
+                        const interval = 1 / this.rate;
+                        if (this.snhLastTick >= interval) {
+                            this.snhLastTick = 0;
+                            this.snhValue = Math.random();
+                        }
+                        this.onMorphChange(this.snhValue);
+                    }
+
+                    this.animationId = requestAnimationFrame(() => this.tick());
                 }
 
                 setRate(hz) {
                     this.rate = Math.max(0.1, hz);
+                }
+
+                setBaseValue(value) {
+                    this.baseValue = value;
+                    if (this.mode === "manual") {
+                        this.onMorphChange(value);
+                    }
+                }
+
+                // Called by MIDI controller
+                setMidiWheel(value) {
+                    this.midiWheelValue = value;
+                    if (this.mode === "midi-wheel") {
+                        this.onMorphChange(value);
+                    }
+                }
+
+                // Called when a note is played with velocity
+                setMidiVelocity(velocity) {
+                    this.midiVelocityValue = velocity;
+                    if (this.mode === "midi-velocity") {
+                        this.onMorphChange(velocity);
+                    }
+                }
+
+                getMode() {
+                    return this.mode;
                 }
             }
 
@@ -3015,25 +3103,34 @@
                     morphSlider.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         morphValue.textContent = value.toFixed(2);
-                        this.setMorphPosition(value);
+                        this.morphModulator.setBaseValue(value);
                     });
 
-                    // Morph S&H modulation
+                    // Morph modulation source selector
                     document
-                        .getElementById("morph-random")
+                        .getElementById("morph-mod-source")
                         .addEventListener("change", (e) => {
-                            if (e.target.checked) {
-                                this.morphModulator.start();
-                            } else {
-                                this.morphModulator.stop();
-                            }
+                            this.morphModulator.setMode(e.target.value);
+                            // Show/hide rate slider based on mode
+                            const rateSlider =
+                                document.getElementById("morph-mod-rate");
+                            const rateValue = document.getElementById(
+                                "morph-mod-rate-value",
+                            );
+                            const showRate =
+                                e.target.value === "lfo" ||
+                                e.target.value === "snh";
+                            rateSlider.style.display = showRate ? "" : "none";
+                            rateValue.style.display = showRate ? "" : "none";
                         });
                     document
-                        .getElementById("morph-speed")
+                        .getElementById("morph-mod-rate")
                         .addEventListener("input", (e) => {
-                            this.morphModulator.setRate(
-                                parseFloat(e.target.value),
-                            );
+                            const value = parseFloat(e.target.value);
+                            this.morphModulator.setRate(value);
+                            document.getElementById(
+                                "morph-mod-rate-value",
+                            ).textContent = value.toFixed(1);
                         });
 
                     // Filter controls
@@ -3352,6 +3449,15 @@
                 }
 
                 noteOn(noteId, frequency, velocity) {
+                    // Update morph modulator with velocity
+                    this.morphModulator.setMidiVelocity(velocity);
+                    // Update slider display if in velocity mode
+                    if (this.morphModulator.getMode() === "midi-velocity") {
+                        document.getElementById("morph-slider").value =
+                            velocity;
+                        document.getElementById("morph-value").textContent =
+                            velocity.toFixed(2);
+                    }
                     this.audio.noteOn(noteId, frequency, velocity);
                 }
 
@@ -3366,13 +3472,16 @@
                 }
 
                 onMidiCC(cc, value) {
+                    // CC1 = Mod wheel
                     if (cc === 1) {
-                        const morphSlider =
-                            document.getElementById("morph-slider");
-                        morphSlider.value = value;
-                        document.getElementById("morph-value").textContent =
-                            value.toFixed(2);
-                        this.setMorphPosition(value);
+                        this.morphModulator.setMidiWheel(value);
+                        // Update slider display if in midi-wheel mode
+                        if (this.morphModulator.getMode() === "midi-wheel") {
+                            document.getElementById("morph-slider").value =
+                                value;
+                            document.getElementById("morph-value").textContent =
+                                value.toFixed(2);
+                        }
                     }
                 }
 
