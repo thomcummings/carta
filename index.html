@@ -2630,6 +2630,7 @@
                         geometry,
                         material,
                     );
+                    this.terrainMesh.scale.setScalar(1.3);
                     this.scene.add(this.terrainMesh);
 
                     // Create morph line
@@ -2666,6 +2667,7 @@
                     });
 
                     this.morphLine = new THREE.Line(geometry, material);
+                    this.morphLine.scale.setScalar(1.3);
                     this.scene.add(this.morphLine);
 
                     this.updateMorphLine();
