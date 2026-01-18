@@ -889,6 +889,7 @@
                         <option value="manual">Manual</option>
                         <option value="lfo">LFO</option>
                         <option value="snh">S&H</option>
+                        <option value="drift">Drift</option>
                         <option value="midi-wheel">MW</option>
                         <option value="midi-velocity">Vel</option>
                     </select>
@@ -2979,7 +2980,7 @@
             class MorphModulator {
                 constructor(onMorphChange) {
                     this.onMorphChange = onMorphChange;
-                    this.mode = "manual"; // manual, lfo, snh, midi-wheel, midi-velocity
+                    this.mode = "manual"; // manual, lfo, snh, drift, midi-wheel, midi-velocity
                     this.rate = 1; // Hz
                     this.range = 1; // 0-1, how much of the terrain to sweep
                     this.offset = 0; // 0-1, starting point of modulation
@@ -2988,6 +2989,10 @@
                     this.phase = 0;
                     this.snhValue = 0.5;
                     this.snhLastTick = 0;
+                    // Drift mode: smoothly interpolate between random targets
+                    this.driftValue = 0.5;
+                    this.driftTarget = 0.5;
+                    this.driftLastTick = 0;
                     this.midiWheelValue = 0.5;
                     this.midiVelocityValue = 0.5;
                     this.baseValue = 0.5; // manual slider value
@@ -3042,6 +3047,21 @@
                             this.snhValue = Math.random();
                         }
                         newValue = this.applyRangeOffset(this.snhValue);
+                        this.onMorphChange(newValue);
+                    } else if (this.mode === "drift") {
+                        // Drift: smoothly interpolate toward random targets
+                        this.driftLastTick += deltaTime;
+                        const interval = 1 / this.rate;
+                        if (this.driftLastTick >= interval) {
+                            this.driftLastTick = 0;
+                            this.driftTarget = Math.random();
+                        }
+                        // Smooth interpolation toward target
+                        const smoothing =
+                            1 - Math.exp(-deltaTime * this.rate * 3);
+                        this.driftValue +=
+                            (this.driftTarget - this.driftValue) * smoothing;
+                        newValue = this.applyRangeOffset(this.driftValue);
                         this.onMorphChange(newValue);
                     }
 
@@ -3224,7 +3244,8 @@
                             );
                             const showRate =
                                 e.target.value === "lfo" ||
-                                e.target.value === "snh";
+                                e.target.value === "snh" ||
+                                e.target.value === "drift";
                             rateSlider.style.display = showRate ? "" : "none";
                             rateValue.style.display = showRate ? "" : "none";
                         });
