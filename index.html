@@ -879,10 +879,10 @@
                             id="search-input"
                             placeholder="Search location or coords (lat, lng)"
                         />
-                        <select id="area-size">
-                            <option value="1">1km</option>
+                        <select id="area-size" title="Terrain sample area size">
+                            <option value="5">5km</option>
                             <option value="10" selected>10km</option>
-                            <option value="100">100km</option>
+                            <option value="50">50km</option>
                         </select>
                         <button id="search-btn">Go</button>
                         <button
@@ -3085,6 +3085,9 @@
                     // Create wrapper
                     this.wrapper = document.createElement("div");
                     this.wrapper.className = "custom-select";
+                    if (this.select.title) {
+                        this.wrapper.title = this.select.title;
+                    }
 
                     // Create trigger button
                     this.trigger = document.createElement("div");
