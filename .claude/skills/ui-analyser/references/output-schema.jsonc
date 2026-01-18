@@ -1,0 +1,279 @@
+// UI Analysis Output Schema
+// Adapt token format based on detected stack (Tailwind, CSS custom props, etc.)
+
+{
+  // Metadata about the analyzed design
+  "meta": {
+    "name": "Design Name",
+    "description": "Brief description of what this UI is",
+    "style": ["glassmorphism", "premium-fintech"], // See style-vocabulary.md
+    "mode": "dark", // "dark" | "light" | "both"
+    "source": "screenshot" // "screenshot" | "url" | "figma" | "dribbble"
+  },
+
+  // Layout structure and spacing system
+  "layout": {
+    "type": "sidebar-content", // Layout pattern name
+    "grid": {
+      "columns": 12,
+      "gutter": "24px",
+      "maxWidth": "1440px"
+    },
+    "regions": {
+      "sidebar": { "width": "240px", "position": "left" },
+      "topbar": { "height": "64px" },
+      "content": { "padding": "24px" }
+    },
+    "breakpoints": {
+      // Match user's stack (Tailwind defaults shown)
+      "sm": "640px",
+      "md": "768px",
+      "lg": "1024px",
+      "xl": "1280px",
+      "2xl": "1536px"
+    },
+    "spacing": {
+      // Base spacing scale
+      "unit": "4px",
+      "scale": [0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64]
+    }
+  },
+
+  // Color system - format depends on detected stack
+  "colors": {
+    // For Tailwind: use scale format (50-950)
+    // For CSS: use semantic names with values
+    
+    "background": {
+      "primary": "#0B0D10",    // Main app background
+      "secondary": "#14171C", // Card/surface background  
+      "elevated": "#1A1D23"   // Modals, dropdowns
+    },
+    
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#B0B3B8",
+      "muted": "#6B6F76",
+      "disabled": "#4A4D52"
+    },
+    
+    "accent": {
+      "primary": "#F5A623",      // Main brand/action color
+      "primaryHover": "#FFB547",
+      "secondary": "#3B82F6"     // Secondary actions
+    },
+    
+    "semantic": {
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    },
+    
+    "border": {
+      "default": "#2A2E35",
+      "subtle": "#1F2328"
+    },
+
+    // Complex color treatments
+    "gradients": {
+      "hero": "linear-gradient(135deg, #F5A623 0%, #FF6B6B 100%)"
+    },
+    
+    "overlays": {
+      "modal": "rgba(0, 0, 0, 0.6)"
+    }
+  },
+
+  // Typography system
+  "typography": {
+    "fonts": {
+      "heading": "'SF Pro Display', system-ui, sans-serif",
+      "body": "'SF Pro Text', system-ui, sans-serif",
+      "mono": "'SF Mono', 'Fira Code', monospace"
+    },
+    
+    "scale": {
+      // Size in px, convert to rem for implementation
+      "xs": { "size": "12px", "lineHeight": "16px" },
+      "sm": { "size": "14px", "lineHeight": "20px" },
+      "base": { "size": "16px", "lineHeight": "24px" },
+      "lg": { "size": "18px", "lineHeight": "28px" },
+      "xl": { "size": "20px", "lineHeight": "28px" },
+      "2xl": { "size": "24px", "lineHeight": "32px" },
+      "3xl": { "size": "30px", "lineHeight": "36px" },
+      "4xl": { "size": "36px", "lineHeight": "40px" }
+    },
+    
+    "weights": {
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    
+    "letterSpacing": {
+      "tight": "-0.025em",
+      "normal": "0",
+      "wide": "0.025em"
+    }
+  },
+
+  // Component-specific tokens
+  "components": {
+    "card": {
+      "background": "#14171C",
+      "borderRadius": "16px",
+      "padding": "24px",
+      "shadow": "0 4px 24px rgba(0, 0, 0, 0.3)",
+      "border": "none"
+    },
+    
+    "button": {
+      "primary": {
+        "background": "#F5A623",
+        "text": "#0B0D10",
+        "borderRadius": "9999px",
+        "padding": "12px 24px",
+        "fontSize": "14px",
+        "fontWeight": 600
+      },
+      "secondary": {
+        "background": "transparent",
+        "text": "#F5A623",
+        "border": "1px solid #F5A623",
+        "borderRadius": "9999px"
+      },
+      "ghost": {
+        "background": "transparent",
+        "text": "#B0B3B8",
+        "hoverBackground": "rgba(255, 255, 255, 0.05)"
+      }
+    },
+    
+    "input": {
+      "background": "#1A1D23",
+      "border": "1px solid #2A2E35",
+      "borderRadius": "8px",
+      "padding": "12px 16px",
+      "focusBorder": "#F5A623"
+    },
+    
+    "table": {
+      "headerBackground": "transparent",
+      "rowHeight": "56px",
+      "rowHover": "rgba(255, 255, 255, 0.02)",
+      "borderColor": "#1F2328"
+    },
+    
+    "sidebar": {
+      "background": "#0E1014",
+      "width": "240px",
+      "itemPadding": "12px 16px",
+      "itemRadius": "8px",
+      "activeBackground": "rgba(245, 166, 35, 0.1)",
+      "activeText": "#F5A623"
+    },
+    
+    "badge": {
+      "borderRadius": "9999px",
+      "padding": "4px 12px",
+      "fontSize": "12px"
+    },
+    
+    "avatar": {
+      "sizes": {
+        "sm": "32px",
+        "md": "40px",
+        "lg": "56px"
+      },
+      "borderRadius": "9999px"
+    },
+    
+    "progressBar": {
+      "height": "6px",
+      "borderRadius": "9999px",
+      "background": "#2A2E35",
+      "fill": "#22C55E"
+    }
+  },
+
+  // Visual effects
+  "effects": {
+    "shadows": {
+      "sm": "0 1px 2px rgba(0, 0, 0, 0.2)",
+      "md": "0 4px 12px rgba(0, 0, 0, 0.25)",
+      "lg": "0 8px 24px rgba(0, 0, 0, 0.3)",
+      "xl": "0 20px 40px rgba(0, 0, 0, 0.4)"
+    },
+    
+    "radii": {
+      "none": "0",
+      "sm": "4px",
+      "md": "8px",
+      "lg": "12px",
+      "xl": "16px",
+      "2xl": "24px",
+      "full": "9999px"
+    },
+    
+    "transitions": {
+      "fast": "150ms ease",
+      "normal": "200ms ease",
+      "slow": "300ms ease"
+    },
+    
+    "blur": {
+      "glass": "blur(12px)"
+    }
+  },
+
+  // Icon specifications
+  "icons": {
+    "style": "outline", // "outline" | "filled" | "duotone"
+    "sizes": {
+      "sm": "16px",
+      "md": "20px",
+      "lg": "24px"
+    },
+    "strokeWidth": "1.5px"
+  },
+
+  // Interactive states (populated from interactive captures)
+  "interactions": {
+    "button": {
+      "hover": {
+        "transform": "translateY(-1px)",
+        "shadow": "0 4px 12px rgba(245, 166, 35, 0.3)",
+        "background": "#FFB547" // Lightened
+      },
+      "active": {
+        "transform": "translateY(0)",
+        "shadow": "0 2px 4px rgba(0, 0, 0, 0.2)"
+      },
+      "focus": {
+        "outline": "2px solid #F5A623",
+        "outlineOffset": "2px"
+      }
+    },
+    "card": {
+      "hover": {
+        "transform": "translateY(-4px)",
+        "shadow": "0 12px 32px rgba(0, 0, 0, 0.4)",
+        "borderColor": "#2A2E35"
+      }
+    },
+    "input": {
+      "focus": {
+        "borderColor": "#F5A623",
+        "shadow": "0 0 0 3px rgba(245, 166, 35, 0.1)"
+      }
+    },
+    "link": {
+      "hover": {
+        "color": "#F5A623",
+        "textDecoration": "underline"
+      }
+    }
+  }
+}

@@ -1,0 +1,2476 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Carta — Terrain Wavetable Synth</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+        <style>
+            /* ============================================================
+           CSS RESET & VARIABLES
+           ============================================================ */
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --bg: #000000;
+                --surface: #0a0a0a;
+                --border: #222222;
+                --text: #ffffff;
+                --text-muted: #666666;
+                --accent: #ffffff;
+                --font-mono:
+                    "SF Mono", "Monaco", "Inconsolata", "Fira Code", monospace;
+            }
+
+            /* Light mode */
+            .light-mode {
+                --bg: #ffffff;
+                --surface: #f5f5f5;
+                --border: #dddddd;
+                --text: #000000;
+                --text-muted: #888888;
+                --accent: #000000;
+            }
+
+            /* ============================================================
+           BASE STYLES
+           ============================================================ */
+            html,
+            body {
+                height: 100%;
+                background: var(--bg);
+                color: var(--text);
+                font-family: var(--font-mono);
+                font-size: 12px;
+                line-height: 1.4;
+                transition:
+                    background 0.2s,
+                    color 0.2s;
+            }
+
+            /* ============================================================
+           APP LAYOUT
+           ============================================================ */
+            #app {
+                display: grid;
+                grid-template-rows: auto 1fr auto auto auto auto;
+                height: 100vh;
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 16px;
+                gap: 12px;
+            }
+
+            /* ============================================================
+           HEADER
+           ============================================================ */
+            header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-bottom: 12px;
+                border-bottom: 1px solid var(--border);
+            }
+
+            h1 {
+                font-size: 14px;
+                font-weight: 400;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+            }
+
+            .header-controls {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .control-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .control-group label {
+                color: var(--text-muted);
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+
+            /* Theme toggle button */
+            .theme-toggle {
+                background: none;
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 8px;
+                font-family: inherit;
+                font-size: 10px;
+                cursor: pointer;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                transition: border-color 0.2s;
+            }
+
+            .theme-toggle:hover {
+                border-color: var(--text);
+            }
+
+            /* ============================================================
+           MAIN CONTENT AREA
+           ============================================================ */
+            main {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                min-height: 0;
+            }
+
+            /* ============================================================
+           MAP SECTION
+           ============================================================ */
+            #map-section {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                position: relative;
+                min-height: 300px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Search bar */
+            .map-search {
+                display: flex;
+                gap: 8px;
+                padding: 8px;
+                background: var(--bg);
+                border-bottom: 1px solid var(--border);
+            }
+
+            .map-search input {
+                flex: 1;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 6px 10px;
+                font-family: inherit;
+                font-size: 11px;
+            }
+
+            .map-search input::placeholder {
+                color: var(--text-muted);
+            }
+
+            .map-search input:focus {
+                outline: none;
+                border-color: var(--text-muted);
+            }
+
+            .map-search button {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 6px 12px;
+                font-family: inherit;
+                font-size: 10px;
+                cursor: pointer;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .map-search button:hover {
+                border-color: var(--text);
+            }
+
+            #map {
+                flex: 1;
+                min-height: 0;
+            }
+
+            /* Override Leaflet styles for dark theme */
+            .leaflet-container {
+                background: var(--bg);
+            }
+
+            .leaflet-tile-pane {
+                filter: grayscale(100%) invert(100%) contrast(0.9);
+            }
+
+            .light-mode .leaflet-tile-pane {
+                filter: grayscale(100%) contrast(1.1);
+            }
+
+            .map-info {
+                position: absolute;
+                bottom: 8px;
+                left: 8px;
+                z-index: 1000;
+                background: rgba(0, 0, 0, 0.8);
+                padding: 6px 10px;
+                font-size: 10px;
+                color: var(--text-muted);
+                border: 1px solid var(--border);
+            }
+
+            .light-mode .map-info {
+                background: rgba(255, 255, 255, 0.9);
+            }
+
+            /* ============================================================
+           VISUALIZATION SECTION
+           ============================================================ */
+            #visualization {
+                position: relative;
+                min-height: 0;
+            }
+
+            .viz-panel {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .viz-panel canvas {
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+
+            /* Terrain panel fills the entire visualization area */
+            #terrain-panel {
+                position: absolute;
+                inset: 0;
+            }
+
+            /* Waveform panel inset in bottom-right corner */
+            #waveform-panel {
+                position: absolute;
+                bottom: 12px;
+                right: 12px;
+                width: 150px;
+                height: 80px;
+                z-index: 10;
+                background: rgba(10, 10, 10, 0.85);
+                border: 1px solid var(--border);
+            }
+
+            .light-mode #waveform-panel {
+                background: rgba(245, 245, 245, 0.9);
+            }
+
+            .viz-label {
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                font-size: 10px;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            /* 3D terrain controls */
+            .terrain-controls {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                display: flex;
+                gap: 4px;
+                z-index: 10;
+            }
+
+            .terrain-controls button {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text-muted);
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .terrain-controls button:hover {
+                color: var(--text);
+                border-color: var(--text);
+            }
+
+            /* ============================================================
+           CONTROLS SECTION
+           ============================================================ */
+            #controls {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            /* Morph slider */
+            #morph-control {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            #morph-control label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                white-space: nowrap;
+            }
+
+            #morph-control input[type="range"] {
+                flex: 1;
+            }
+
+            #morph-control .morph-value {
+                font-size: 10px;
+                color: var(--text-muted);
+                min-width: 40px;
+                text-align: right;
+            }
+
+            /* ADSR controls */
+            #adsr-controls {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+            }
+
+            .adsr-param {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .adsr-param label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+            }
+
+            .adsr-param .value {
+                font-size: 10px;
+                color: var(--text);
+            }
+
+            /* ============================================================
+           RANGE INPUT STYLING
+           ============================================================ */
+            input[type="range"] {
+                -webkit-appearance: none;
+                appearance: none;
+                background: transparent;
+                cursor: pointer;
+                height: 20px;
+            }
+
+            input[type="range"]::-webkit-slider-runnable-track {
+                height: 2px;
+                background: var(--border);
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                background: var(--text);
+                border-radius: 50%;
+                margin-top: -5px;
+            }
+
+            input[type="range"]::-moz-range-track {
+                height: 2px;
+                background: var(--border);
+            }
+
+            input[type="range"]::-moz-range-thumb {
+                width: 12px;
+                height: 12px;
+                background: var(--text);
+                border: none;
+                border-radius: 50%;
+            }
+
+            /* ============================================================
+           KEYBOARD SECTION
+           ============================================================ */
+            #keyboard {
+                padding: 16px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .keyboard-row {
+                display: flex;
+                justify-content: center;
+                gap: 4px;
+            }
+
+            .key {
+                width: 48px;
+                height: 64px;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                align-items: center;
+                padding-bottom: 8px;
+                cursor: pointer;
+                user-select: none;
+                transition:
+                    background 0.05s,
+                    border-color 0.05s;
+            }
+
+            .key:hover {
+                border-color: var(--text-muted);
+            }
+
+            .key.active {
+                background: var(--text);
+                border-color: var(--text);
+            }
+
+            .key.active .key-label,
+            .key.active .key-note {
+                color: var(--bg);
+            }
+
+            .key-label {
+                font-size: 10px;
+                color: var(--text-muted);
+            }
+
+            .key-note {
+                font-size: 9px;
+                color: var(--text-muted);
+                margin-top: 2px;
+            }
+
+            /* ============================================================
+           STATUS BAR
+           ============================================================ */
+            #status {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                font-size: 10px;
+                color: var(--text-muted);
+            }
+
+            #status .midi-status {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .midi-indicator {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--text-muted);
+            }
+
+            .midi-indicator.connected {
+                background: #00cc00;
+            }
+
+            .light-mode .midi-indicator.connected {
+                background: #009900;
+            }
+
+            /* ============================================================
+           LOADING STATE
+           ============================================================ */
+            .loading-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 2000;
+            }
+
+            .light-mode .loading-overlay {
+                background: rgba(255, 255, 255, 0.8);
+            }
+
+            .loading-overlay.hidden {
+                display: none;
+            }
+
+            .spinner {
+                width: 24px;
+                height: 24px;
+                border: 2px solid var(--border);
+                border-top-color: var(--text);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* ============================================================
+           UTILITY CLASSES
+           ============================================================ */
+            .hidden {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <!-- Header -->
+            <header>
+                <h1>Carta</h1>
+                <div class="header-controls">
+                    <div class="control-group">
+                        <label for="master-volume">Vol</label>
+                        <input
+                            type="range"
+                            id="master-volume"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.7"
+                        />
+                    </div>
+                    <button class="theme-toggle" id="theme-toggle">
+                        Light
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main content: Map + Visualizations -->
+            <main>
+                <section id="map-section">
+                    <div class="map-search">
+                        <input
+                            type="text"
+                            id="search-input"
+                            placeholder="Search location or coords (lat, lng)"
+                        />
+                        <button id="search-btn">Go</button>
+                    </div>
+                    <div id="map"></div>
+                    <div class="map-info">
+                        <span id="location-display"
+                            >Click map to select terrain</span
+                        >
+                    </div>
+                    <div id="map-loading" class="loading-overlay hidden">
+                        <div class="spinner"></div>
+                    </div>
+                </section>
+
+                <section id="visualization">
+                    <div class="viz-panel" id="terrain-panel">
+                        <span class="viz-label">Terrain</span>
+                        <canvas id="terrain-canvas"></canvas>
+                        <div class="terrain-controls">
+                            <button id="reset-view" title="Reset camera view">
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path
+                                        d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                                    />
+                                    <path d="M3 3v5h5" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="viz-panel" id="waveform-panel">
+                        <span class="viz-label">Waveform</span>
+                        <canvas id="waveform-canvas"></canvas>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Morph control -->
+            <div id="morph-control">
+                <label for="morph-slider">Morph N↔S</label>
+                <input
+                    type="range"
+                    id="morph-slider"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value="0.5"
+                />
+                <span class="morph-value" id="morph-value">0.50</span>
+            </div>
+
+            <!-- ADSR controls -->
+            <div id="adsr-controls">
+                <div class="adsr-param">
+                    <label for="attack">Attack</label>
+                    <input
+                        type="range"
+                        id="attack"
+                        min="0.001"
+                        max="2"
+                        step="0.001"
+                        value="0.01"
+                    />
+                    <span class="value" id="attack-value">0.01s</span>
+                </div>
+                <div class="adsr-param">
+                    <label for="decay">Decay</label>
+                    <input
+                        type="range"
+                        id="decay"
+                        min="0.001"
+                        max="2"
+                        step="0.001"
+                        value="0.1"
+                    />
+                    <span class="value" id="decay-value">0.10s</span>
+                </div>
+                <div class="adsr-param">
+                    <label for="sustain">Sustain</label>
+                    <input
+                        type="range"
+                        id="sustain"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="0.7"
+                    />
+                    <span class="value" id="sustain-value">0.70</span>
+                </div>
+                <div class="adsr-param">
+                    <label for="release">Release</label>
+                    <input
+                        type="range"
+                        id="release"
+                        min="0.001"
+                        max="3"
+                        step="0.001"
+                        value="0.3"
+                    />
+                    <span class="value" id="release-value">0.30s</span>
+                </div>
+            </div>
+
+            <!-- On-screen keyboard -->
+            <section id="keyboard">
+                <div class="keyboard-row">
+                    <div
+                        class="key"
+                        data-key="a"
+                        data-note="C4"
+                        data-freq="261.63"
+                    >
+                        <span class="key-label">A</span>
+                        <span class="key-note">C4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="s"
+                        data-note="D4"
+                        data-freq="293.66"
+                    >
+                        <span class="key-label">S</span>
+                        <span class="key-note">D4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="d"
+                        data-note="E4"
+                        data-freq="329.63"
+                    >
+                        <span class="key-label">D</span>
+                        <span class="key-note">E4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="f"
+                        data-note="F4"
+                        data-freq="349.23"
+                    >
+                        <span class="key-label">F</span>
+                        <span class="key-note">F4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="g"
+                        data-note="G4"
+                        data-freq="392.00"
+                    >
+                        <span class="key-label">G</span>
+                        <span class="key-note">G4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="h"
+                        data-note="A4"
+                        data-freq="440.00"
+                    >
+                        <span class="key-label">H</span>
+                        <span class="key-note">A4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="j"
+                        data-note="B4"
+                        data-freq="493.88"
+                    >
+                        <span class="key-label">J</span>
+                        <span class="key-note">B4</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="k"
+                        data-note="C5"
+                        data-freq="523.25"
+                    >
+                        <span class="key-label">K</span>
+                        <span class="key-note">C5</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="l"
+                        data-note="D5"
+                        data-freq="587.33"
+                    >
+                        <span class="key-label">L</span>
+                        <span class="key-note">D5</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key=";"
+                        data-note="E5"
+                        data-freq="659.25"
+                    >
+                        <span class="key-label">;</span>
+                        <span class="key-note">E5</span>
+                    </div>
+                    <div
+                        class="key"
+                        data-key="'"
+                        data-note="F5"
+                        data-freq="698.46"
+                    >
+                        <span class="key-label">'</span>
+                        <span class="key-note">F5</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Status bar -->
+            <footer id="status">
+                <span id="status-message">Click map to load terrain</span>
+                <div class="midi-status">
+                    <span class="midi-indicator" id="midi-indicator"></span>
+                    <span id="midi-status">No MIDI</span>
+                </div>
+            </footer>
+        </div>
+
+        <!-- External libraries -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+        <script>
+            // OrbitControls inline (since CDN version has module issues)
+            // Simplified orbit controls for terrain viewing
+            THREE.OrbitControls = function (camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+                this.enabled = true;
+                this.enableDamping = false;
+                this.dampingFactor = 0.05;
+                this.enablePan = false;
+                this.minDistance = 1;
+                this.maxDistance = 5;
+
+                let spherical = {
+                    radius: 3,
+                    phi: Math.PI / 4,
+                    theta: Math.PI / 4,
+                };
+                let sphericalDelta = { phi: 0, theta: 0 };
+                let scale = 1;
+                let isDragging = false;
+                let previousMouse = { x: 0, y: 0 };
+
+                const updateCamera = () => {
+                    const r = spherical.radius;
+                    camera.position.x =
+                        r * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+                    camera.position.y = r * Math.cos(spherical.phi);
+                    camera.position.z =
+                        r * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+                    camera.lookAt(0, 0, 0);
+                };
+
+                const onMouseDown = (e) => {
+                    if (!this.enabled) return;
+                    isDragging = true;
+                    previousMouse.x = e.clientX;
+                    previousMouse.y = e.clientY;
+                };
+
+                const onMouseMove = (e) => {
+                    if (!isDragging || !this.enabled) return;
+                    const deltaX = e.clientX - previousMouse.x;
+                    const deltaY = e.clientY - previousMouse.y;
+                    spherical.theta -= deltaX * 0.01;
+                    spherical.phi = Math.max(
+                        0.1,
+                        Math.min(Math.PI - 0.1, spherical.phi + deltaY * 0.01),
+                    );
+                    previousMouse.x = e.clientX;
+                    previousMouse.y = e.clientY;
+                };
+
+                const onMouseUp = () => {
+                    isDragging = false;
+                };
+
+                const onWheel = (e) => {
+                    if (!this.enabled) return;
+                    e.preventDefault();
+                    spherical.radius = Math.max(
+                        this.minDistance,
+                        Math.min(
+                            this.maxDistance,
+                            spherical.radius + e.deltaY * 0.002,
+                        ),
+                    );
+                };
+
+                domElement.addEventListener("mousedown", onMouseDown);
+                domElement.addEventListener("mousemove", onMouseMove);
+                domElement.addEventListener("mouseup", onMouseUp);
+                domElement.addEventListener("mouseleave", onMouseUp);
+                domElement.addEventListener("wheel", onWheel, {
+                    passive: false,
+                });
+
+                // Touch support
+                domElement.addEventListener("touchstart", (e) => {
+                    if (e.touches.length === 1) {
+                        isDragging = true;
+                        previousMouse.x = e.touches[0].clientX;
+                        previousMouse.y = e.touches[0].clientY;
+                    }
+                });
+                domElement.addEventListener("touchmove", (e) => {
+                    if (!isDragging || e.touches.length !== 1) return;
+                    const deltaX = e.touches[0].clientX - previousMouse.x;
+                    const deltaY = e.touches[0].clientY - previousMouse.y;
+                    spherical.theta -= deltaX * 0.01;
+                    spherical.phi = Math.max(
+                        0.1,
+                        Math.min(Math.PI - 0.1, spherical.phi + deltaY * 0.01),
+                    );
+                    previousMouse.x = e.touches[0].clientX;
+                    previousMouse.y = e.touches[0].clientY;
+                });
+                domElement.addEventListener("touchend", () => {
+                    isDragging = false;
+                });
+
+                this.update = () => {
+                    updateCamera();
+                };
+                this.reset = () => {
+                    spherical = {
+                        radius: 3,
+                        phi: Math.PI / 4,
+                        theta: Math.PI / 4,
+                    };
+                    updateCamera();
+                };
+
+                updateCamera();
+            };
+        </script>
+
+        <script>
+            // ============================================================
+            // CONFIGURATION
+            // ============================================================
+            const CONFIG = {
+                wavetable: {
+                    samplesPerWaveform: 256,
+                    numberOfFrames: 32,
+                    gridSizeKm: 1.0,
+                },
+                audio: {
+                    polyphony: 8,
+                },
+                api: {
+                    // CORS proxy - leave empty when deployed, use "https://corsproxy.io/?" for local file://
+                    corsProxy: "",
+                    primary: "https://api.open-elevation.com/api/v1/lookup",
+                    fallback: "https://api.opentopodata.org/v1/srtm30m",
+                    maxLocationsPerRequest: 1000, // ~9 requests for 8192 points
+                    delayBetweenChunks: 100,
+                },
+                map: {
+                    defaultCenter: [46.8182, 8.2275], // Swiss Alps
+                    defaultZoom: 6,
+                },
+            };
+
+            // ============================================================
+            // TERRAIN DATA SERVICE
+            // ============================================================
+            class TerrainService {
+                constructor() {
+                    this.cache = new Map();
+                }
+
+                /**
+                 * Generate cache key from coordinates.
+                 */
+                getCacheKey(lat, lng) {
+                    return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+                }
+
+                /**
+                 * Generate grid of coordinates for elevation sampling.
+                 */
+                generateGridLocations(centerLat, centerLng, config) {
+                    const locations = [];
+                    const { samplesPerWaveform, numberOfFrames, gridSizeKm } =
+                        config;
+
+                    const latOffset = gridSizeKm / 2 / 111.0;
+                    const lngOffset =
+                        gridSizeKm /
+                        2 /
+                        (111.0 * Math.cos((centerLat * Math.PI) / 180));
+
+                    const latStep = (2 * latOffset) / (numberOfFrames - 1);
+                    const lngStep = (2 * lngOffset) / (samplesPerWaveform - 1);
+
+                    for (let frame = 0; frame < numberOfFrames; frame++) {
+                        const lat = centerLat + latOffset - frame * latStep;
+
+                        for (
+                            let sample = 0;
+                            sample < samplesPerWaveform;
+                            sample++
+                        ) {
+                            const lng =
+                                centerLng - lngOffset + sample * lngStep;
+                            locations.push({ latitude: lat, longitude: lng });
+                        }
+                    }
+
+                    return locations;
+                }
+
+                /**
+                 * Fetch elevation data with caching.
+                 */
+                async fetchElevation(centerLat, centerLng) {
+                    const cacheKey = this.getCacheKey(centerLat, centerLng);
+
+                    if (this.cache.has(cacheKey)) {
+                        console.log("Using cached terrain data");
+                        return this.cache.get(cacheKey);
+                    }
+
+                    const locations = this.generateGridLocations(
+                        centerLat,
+                        centerLng,
+                        CONFIG.wavetable,
+                    );
+
+                    console.log(
+                        `Fetching ${locations.length} elevation points...`,
+                    );
+
+                    let result;
+                    try {
+                        result = await this.fetchWithChunking(
+                            locations,
+                            CONFIG.api.primary,
+                            "primary",
+                        );
+                    } catch (primaryError) {
+                        console.warn(
+                            "Primary API failed:",
+                            primaryError.message,
+                        );
+                        app.setStatus(
+                            "Primary API failed, trying backup...",
+                            "warning",
+                        );
+
+                        try {
+                            result =
+                                await this.fetchFromOpenTopoData(locations);
+                        } catch (fallbackError) {
+                            console.warn(
+                                "Fallback API failed:",
+                                fallbackError.message,
+                            );
+                            app.setStatus(
+                                "APIs unavailable, using demo terrain",
+                                "warning",
+                            );
+                            result = this.generateDemoTerrain(
+                                centerLat,
+                                centerLng,
+                            );
+                        }
+                    }
+
+                    this.cache.set(cacheKey, result);
+                    return result;
+                }
+
+                /**
+                 * Fetch with chunking to avoid API timeouts.
+                 */
+                async fetchWithChunking(locations, apiUrl, apiName) {
+                    const { maxLocationsPerRequest, delayBetweenChunks } =
+                        CONFIG.api;
+                    const chunks = [];
+
+                    for (
+                        let i = 0;
+                        i < locations.length;
+                        i += maxLocationsPerRequest
+                    ) {
+                        chunks.push(
+                            locations.slice(i, i + maxLocationsPerRequest),
+                        );
+                    }
+
+                    const results = [];
+                    for (let i = 0; i < chunks.length; i++) {
+                        app.setStatus(
+                            `Fetching terrain (${apiName})... ${i + 1}/${chunks.length}`,
+                            "loading",
+                        );
+
+                        const fetchUrl = CONFIG.api.corsProxy
+                            ? CONFIG.api.corsProxy + encodeURIComponent(apiUrl)
+                            : apiUrl;
+                        const response = await fetch(fetchUrl, {
+                            method: "POST",
+                            headers: {
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ locations: chunks[i] }),
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`API returned ${response.status}`);
+                        }
+
+                        const data = await response.json();
+
+                        if (!data.results || data.results.length === 0) {
+                            throw new Error("No results in API response");
+                        }
+
+                        results.push(
+                            ...data.results.map((r) => r.elevation ?? 0),
+                        );
+
+                        if (i < chunks.length - 1) {
+                            await this.sleep(delayBetweenChunks);
+                        }
+                    }
+
+                    console.log(`Received ${results.length} elevation points`);
+                    return this.normalizeToWavetable(results);
+                }
+
+                /**
+                 * Fetch from Open Topo Data.
+                 */
+                async fetchFromOpenTopoData(locations) {
+                    const { maxLocationsPerRequest, delayBetweenChunks } =
+                        CONFIG.api;
+                    const chunks = [];
+
+                    for (
+                        let i = 0;
+                        i < locations.length;
+                        i += maxLocationsPerRequest
+                    ) {
+                        chunks.push(
+                            locations.slice(i, i + maxLocationsPerRequest),
+                        );
+                    }
+
+                    const results = [];
+                    for (let i = 0; i < chunks.length; i++) {
+                        app.setStatus(
+                            `Fetching terrain (backup)... ${i + 1}/${chunks.length}`,
+                            "loading",
+                        );
+
+                        const locString = chunks[i]
+                            .map((l) => `${l.latitude},${l.longitude}`)
+                            .join("|");
+
+                        const fallbackUrl = `${CONFIG.api.fallback}?locations=${locString}`;
+                        const fetchUrl = CONFIG.api.corsProxy
+                            ? CONFIG.api.corsProxy +
+                              encodeURIComponent(fallbackUrl)
+                            : fallbackUrl;
+                        const response = await fetch(fetchUrl);
+
+                        if (!response.ok) {
+                            throw new Error(
+                                `Fallback API returned ${response.status}`,
+                            );
+                        }
+
+                        const data = await response.json();
+
+                        if (!data.results || data.results.length === 0) {
+                            throw new Error(
+                                "No results in fallback API response",
+                            );
+                        }
+
+                        results.push(
+                            ...data.results.map((r) => r.elevation ?? 0),
+                        );
+
+                        if (i < chunks.length - 1) {
+                            await this.sleep(delayBetweenChunks);
+                        }
+                    }
+
+                    console.log(
+                        `Received ${results.length} elevation points from fallback`,
+                    );
+                    return this.normalizeToWavetable(results);
+                }
+
+                /**
+                 * Generate procedural terrain for demo/fallback.
+                 */
+                generateDemoTerrain(centerLat = 0, centerLng = 0) {
+                    console.warn(
+                        "TerrainService: USING DEMO TERRAIN (APIs failed)",
+                    );
+                    const { samplesPerWaveform, numberOfFrames } =
+                        CONFIG.wavetable;
+                    const elevations = [];
+
+                    // Use coordinates as seed for variation
+                    const seed = (centerLat * 1000 + centerLng) % 1000;
+
+                    for (let f = 0; f < numberOfFrames; f++) {
+                        for (let s = 0; s < samplesPerWaveform; s++) {
+                            const value =
+                                Math.sin(s * 0.05 + seed * 0.01) * 500 +
+                                Math.sin(s * 0.1 + f * 0.2 + seed * 0.02) *
+                                    300 +
+                                Math.sin(s * 0.02 - f * 0.1 + seed * 0.03) *
+                                    200 +
+                                Math.sin(s * 0.25 + f * 0.5) * 100;
+                            elevations.push(value);
+                        }
+                    }
+
+                    console.log("Generated demo terrain");
+                    return this.normalizeToWavetable(elevations);
+                }
+
+                /**
+                 * Normalize elevation data to wavetable format.
+                 */
+                normalizeToWavetable(elevations) {
+                    const { samplesPerWaveform, numberOfFrames } =
+                        CONFIG.wavetable;
+
+                    let globalMin = Infinity;
+                    let globalMax = -Infinity;
+
+                    for (const elev of elevations) {
+                        if (
+                            elev !== null &&
+                            elev !== undefined &&
+                            !isNaN(elev)
+                        ) {
+                            globalMin = Math.min(globalMin, elev);
+                            globalMax = Math.max(globalMax, elev);
+                        }
+                    }
+
+                    // Handle edge case of flat terrain
+                    if (globalMin === globalMax) {
+                        globalMax = globalMin + 1;
+                    }
+
+                    const range = globalMax - globalMin;
+                    const midpoint = (globalMax + globalMin) / 2;
+
+                    const frames = [];
+                    for (let f = 0; f < numberOfFrames; f++) {
+                        const frame = new Float32Array(samplesPerWaveform);
+                        const frameStart = f * samplesPerWaveform;
+
+                        for (let s = 0; s < samplesPerWaveform; s++) {
+                            const rawValue = elevations[frameStart + s] ?? 0;
+                            frame[s] =
+                                range > 0
+                                    ? (rawValue - midpoint) / (range / 2)
+                                    : 0;
+                        }
+
+                        frames.push(frame);
+                    }
+
+                    console.log(
+                        `Normalized wavetable: ${frames.length} frames, elevation ${Math.round(globalMin)}m - ${Math.round(globalMax)}m`,
+                    );
+
+                    return {
+                        frames,
+                        metadata: { globalMin, globalMax, range },
+                    };
+                }
+
+                sleep(ms) {
+                    return new Promise((resolve) => setTimeout(resolve, ms));
+                }
+            }
+
+            // ============================================================
+            // AUDIO ENGINE
+            // ============================================================
+            class AudioEngine {
+                constructor() {
+                    this.audioCtx = null;
+                    this.masterGain = null;
+                    this.periodicWaves = [];
+                    this.voices = new Map();
+                    this.morphPosition = 0.5;
+                    this.adsr = {
+                        attack: 0.01,
+                        decay: 0.1,
+                        sustain: 0.7,
+                        release: 0.3,
+                    };
+                    this.initialized = false;
+                }
+
+                async initialize() {
+                    if (this.initialized) return;
+
+                    this.audioCtx = new (
+                        window.AudioContext || window.webkitAudioContext
+                    )();
+                    this.masterGain = this.audioCtx.createGain();
+                    this.masterGain.gain.value = 0.7;
+                    this.masterGain.connect(this.audioCtx.destination);
+
+                    this.loadDefaultWave();
+
+                    this.initialized = true;
+                    console.log("Audio engine initialized");
+                }
+
+                loadDefaultWave() {
+                    const real = new Float32Array(2);
+                    const imag = new Float32Array(2);
+                    real[0] = 0;
+                    imag[0] = 0;
+                    real[1] = 0;
+                    imag[1] = 1;
+
+                    const wave = this.audioCtx.createPeriodicWave(real, imag);
+                    this.periodicWaves = [wave];
+                }
+
+                loadWavetable(frames) {
+                    if (!this.initialized) {
+                        console.warn("Audio not initialized");
+                        return;
+                    }
+
+                    this.periodicWaves = frames.map((frame) =>
+                        this.frameToPeriodicWave(frame),
+                    );
+                    console.log(
+                        `Audio: Loaded ${this.periodicWaves.length} wavetable frames`,
+                    );
+                }
+
+                frameToPeriodicWave(frame) {
+                    const n = frame.length;
+                    const real = new Float32Array(n / 2);
+                    const imag = new Float32Array(n / 2);
+
+                    for (let k = 0; k < n / 2; k++) {
+                        let sumReal = 0;
+                        let sumImag = 0;
+
+                        for (let t = 0; t < n; t++) {
+                            const angle = (2 * Math.PI * k * t) / n;
+                            sumReal += frame[t] * Math.cos(angle);
+                            sumImag -= frame[t] * Math.sin(angle);
+                        }
+
+                        real[k] = sumReal / n;
+                        imag[k] = sumImag / n;
+                    }
+
+                    real[0] = 0;
+                    imag[0] = 0;
+
+                    return this.audioCtx.createPeriodicWave(real, imag, {
+                        disableNormalization: false,
+                    });
+                }
+
+                noteOn(noteId, frequency, velocity = 1.0) {
+                    if (!this.initialized || this.periodicWaves.length === 0)
+                        return;
+
+                    this.noteOff(noteId);
+
+                    const voice = this.createVoice(frequency, velocity);
+                    this.voices.set(noteId, voice);
+
+                    this.triggerAttack(voice.envGain);
+
+                    voice.oscA.start();
+                    voice.oscB.start();
+                }
+
+                createVoice(frequency, velocity) {
+                    const oscA = this.audioCtx.createOscillator();
+                    const oscB = this.audioCtx.createOscillator();
+                    const gainA = this.audioCtx.createGain();
+                    const gainB = this.audioCtx.createGain();
+                    const envGain = this.audioCtx.createGain();
+                    const velGain = this.audioCtx.createGain();
+
+                    oscA.connect(gainA);
+                    oscB.connect(gainB);
+                    gainA.connect(envGain);
+                    gainB.connect(envGain);
+                    envGain.connect(velGain);
+                    velGain.connect(this.masterGain);
+
+                    oscA.frequency.value = frequency;
+                    oscB.frequency.value = frequency;
+
+                    velGain.gain.value = velocity;
+
+                    this.applyMorph({ oscA, oscB, gainA, gainB });
+
+                    envGain.gain.value = 0;
+
+                    return { oscA, oscB, gainA, gainB, envGain, velGain };
+                }
+
+                applyMorph(voice) {
+                    if (this.periodicWaves.length <= 1) {
+                        voice.oscA.setPeriodicWave(this.periodicWaves[0]);
+                        voice.oscB.setPeriodicWave(this.periodicWaves[0]);
+                        voice.gainA.gain.value = 1;
+                        voice.gainB.gain.value = 0;
+                        return;
+                    }
+
+                    const frameIndex =
+                        this.morphPosition * (this.periodicWaves.length - 1);
+                    const lowerFrame = Math.floor(frameIndex);
+                    const upperFrame = Math.min(
+                        lowerFrame + 1,
+                        this.periodicWaves.length - 1,
+                    );
+                    const blend = frameIndex - lowerFrame;
+
+                    voice.oscA.setPeriodicWave(this.periodicWaves[lowerFrame]);
+                    voice.oscB.setPeriodicWave(this.periodicWaves[upperFrame]);
+                    voice.gainA.gain.value = 1 - blend;
+                    voice.gainB.gain.value = blend;
+                }
+
+                noteOff(noteId) {
+                    const voice = this.voices.get(noteId);
+                    if (!voice) return;
+
+                    this.triggerRelease(voice.envGain);
+
+                    const stopTime =
+                        this.audioCtx.currentTime + this.adsr.release + 0.1;
+                    voice.oscA.stop(stopTime);
+                    voice.oscB.stop(stopTime);
+
+                    this.voices.delete(noteId);
+                }
+
+                triggerAttack(gainNode) {
+                    const now = this.audioCtx.currentTime;
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(
+                        1,
+                        now + this.adsr.attack,
+                    );
+                    gainNode.gain.linearRampToValueAtTime(
+                        this.adsr.sustain,
+                        now + this.adsr.attack + this.adsr.decay,
+                    );
+                }
+
+                triggerRelease(gainNode) {
+                    const now = this.audioCtx.currentTime;
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.linearRampToValueAtTime(
+                        0,
+                        now + this.adsr.release,
+                    );
+                }
+
+                setMorphPosition(position) {
+                    this.morphPosition = Math.max(0, Math.min(1, position));
+
+                    for (const voice of this.voices.values()) {
+                        this.applyMorph(voice);
+                    }
+                }
+
+                setMasterVolume(volume) {
+                    if (this.masterGain) {
+                        this.masterGain.gain.value = volume;
+                    }
+                }
+
+                setADSR(attack, decay, sustain, release) {
+                    this.adsr = { attack, decay, sustain, release };
+                }
+            }
+
+            // ============================================================
+            // MIDI CONTROLLER
+            // ============================================================
+            class MidiController {
+                constructor(onNoteOn, onNoteOff, onCC) {
+                    this.onNoteOn = onNoteOn;
+                    this.onNoteOff = onNoteOff;
+                    this.onCC = onCC;
+                    this.midiAccess = null;
+                    this.inputs = [];
+                }
+
+                async initialize() {
+                    if (!navigator.requestMIDIAccess) {
+                        console.log("Web MIDI not supported");
+                        return false;
+                    }
+
+                    try {
+                        this.midiAccess = await navigator.requestMIDIAccess();
+                        this.setupInputs();
+                        this.midiAccess.onstatechange = () =>
+                            this.setupInputs();
+                        return true;
+                    } catch (err) {
+                        console.warn("MIDI access denied:", err);
+                        return false;
+                    }
+                }
+
+                setupInputs() {
+                    this.inputs = [];
+
+                    for (const input of this.midiAccess.inputs.values()) {
+                        input.onmidimessage = (e) => this.handleMessage(e);
+                        this.inputs.push(input);
+                    }
+
+                    if (this.inputs.length > 0) {
+                        const names = this.inputs.map((i) => i.name).join(", ");
+                        app.setMidiStatus(true, names);
+                    } else {
+                        app.setMidiStatus(false, "No MIDI devices");
+                    }
+                }
+
+                handleMessage(event) {
+                    const [status, data1, data2] = event.data;
+                    const command = status >> 4;
+
+                    switch (command) {
+                        case 0x9:
+                            if (data2 > 0) {
+                                const frequency =
+                                    this.midiNoteToFrequency(data1);
+                                const velocity = data2 / 127;
+                                this.onNoteOn(data1, frequency, velocity);
+                            } else {
+                                this.onNoteOff(data1);
+                            }
+                            break;
+
+                        case 0x8:
+                            this.onNoteOff(data1);
+                            break;
+
+                        case 0xb:
+                            this.onCC(data1, data2 / 127);
+                            break;
+                    }
+                }
+
+                midiNoteToFrequency(note) {
+                    return 440 * Math.pow(2, (note - 69) / 12);
+                }
+            }
+
+            // ============================================================
+            // 3D TERRAIN VISUALIZATION (Three.js)
+            // ============================================================
+            class Terrain3DDisplay {
+                constructor(canvas) {
+                    this.canvas = canvas;
+                    this.frames = [];
+                    this.morphPosition = 0.5;
+                    this.isLightMode = false;
+
+                    this.scene = null;
+                    this.camera = null;
+                    this.renderer = null;
+                    this.controls = null;
+                    this.terrainMesh = null;
+                    this.morphLine = null;
+
+                    this.init();
+                }
+
+                init() {
+                    // Scene
+                    this.scene = new THREE.Scene();
+
+                    // Camera
+                    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+                    this.camera.position.set(2, 1.5, 2);
+
+                    // Renderer
+                    this.renderer = new THREE.WebGLRenderer({
+                        canvas: this.canvas,
+                        antialias: true,
+                        alpha: true,
+                    });
+                    this.renderer.setPixelRatio(window.devicePixelRatio);
+                    this.updateColors();
+
+                    // Controls
+                    this.controls = new THREE.OrbitControls(
+                        this.camera,
+                        this.canvas,
+                    );
+                    this.controls.enableDamping = true;
+                    this.controls.dampingFactor = 0.05;
+                    this.controls.enablePan = false;
+                    this.controls.minDistance = 1;
+                    this.controls.maxDistance = 5;
+
+                    // Initial resize
+                    this.resize();
+
+                    // Animation loop
+                    this.animate();
+
+                    // Resize observer
+                    this.resizeObserver = new ResizeObserver(() =>
+                        this.resize(),
+                    );
+                    this.resizeObserver.observe(this.canvas.parentElement);
+                }
+
+                resize() {
+                    const rect =
+                        this.canvas.parentElement.getBoundingClientRect();
+                    const width = rect.width;
+                    const height = rect.height;
+
+                    this.camera.aspect = width / height;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(width, height);
+                }
+
+                updateColors() {
+                    const bgColor = this.isLightMode ? 0xf5f5f5 : 0x0a0a0a;
+                    this.renderer.setClearColor(bgColor, 1);
+
+                    // Update terrain material if it exists
+                    if (this.terrainMesh) {
+                        this.terrainMesh.material.color.setHex(
+                            this.isLightMode ? 0x000000 : 0xffffff,
+                        );
+                    }
+
+                    // Update morph line if it exists (arctic blue for visibility)
+                    if (this.morphLine) {
+                        this.morphLine.material.color.setHex(
+                            this.isLightMode ? 0x0088cc : 0x66ccff,
+                        );
+                    }
+                }
+
+                setLightMode(isLight) {
+                    this.isLightMode = isLight;
+                    this.updateColors();
+                }
+
+                setFrames(frames) {
+                    console.log(
+                        `Terrain3D.setFrames: received ${frames.length} frames`,
+                    );
+                    this.frames = frames;
+                    this.buildTerrain();
+                }
+
+                setMorphPosition(position) {
+                    this.morphPosition = position;
+                    this.updateMorphLine();
+                }
+
+                buildTerrain() {
+                    console.log("Terrain3D.buildTerrain: starting rebuild...");
+
+                    // Remove old mesh
+                    if (this.terrainMesh) {
+                        this.scene.remove(this.terrainMesh);
+                        this.terrainMesh.geometry.dispose();
+                        this.terrainMesh.material.dispose();
+                        console.log("Terrain3D.buildTerrain: removed old mesh");
+                    }
+                    if (this.morphLine) {
+                        this.scene.remove(this.morphLine);
+                        this.morphLine.geometry.dispose();
+                        this.morphLine.material.dispose();
+                    }
+
+                    if (this.frames.length === 0) {
+                        console.log(
+                            "Terrain3D.buildTerrain: no frames, skipping",
+                        );
+                        return;
+                    }
+
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+
+                    // Log some sample values to verify data is different
+                    console.log(
+                        `Terrain3D.buildTerrain: ${numFrames} frames x ${samplesPerFrame} samples`,
+                    );
+                    console.log(
+                        "Terrain3D.buildTerrain: sample values from frame 0:",
+                        this.frames[0][0].toFixed(3),
+                        this.frames[0][Math.floor(samplesPerFrame / 2)].toFixed(
+                            3,
+                        ),
+                        this.frames[0][samplesPerFrame - 1].toFixed(3),
+                    );
+
+                    // Create geometry
+                    const geometry = new THREE.BufferGeometry();
+                    const vertices = [];
+                    const indices = [];
+
+                    // Downsample for performance
+                    const frameStep = Math.max(1, Math.floor(numFrames / 32));
+                    const sampleStep = Math.max(
+                        1,
+                        Math.floor(samplesPerFrame / 64),
+                    );
+
+                    const actualFrames = [];
+                    const actualSamples = [];
+
+                    for (let f = 0; f < numFrames; f += frameStep) {
+                        actualFrames.push(f);
+                    }
+                    for (let s = 0; s < samplesPerFrame; s += sampleStep) {
+                        actualSamples.push(s);
+                    }
+
+                    // Generate vertices
+                    for (let fi = 0; fi < actualFrames.length; fi++) {
+                        const f = actualFrames[fi];
+                        const z = fi / (actualFrames.length - 1) - 0.5; // -0.5 to 0.5
+
+                        for (let si = 0; si < actualSamples.length; si++) {
+                            const s = actualSamples[si];
+                            const x = si / (actualSamples.length - 1) - 0.5; // -0.5 to 0.5
+                            const y = this.frames[f][s] * 0.3; // Height scale
+
+                            vertices.push(x, y, z);
+                        }
+                    }
+
+                    // Generate indices for wireframe
+                    const cols = actualSamples.length;
+                    const rows = actualFrames.length;
+
+                    for (let r = 0; r < rows; r++) {
+                        for (let c = 0; c < cols - 1; c++) {
+                            const i = r * cols + c;
+                            indices.push(i, i + 1);
+                        }
+                    }
+
+                    for (let c = 0; c < cols; c++) {
+                        for (let r = 0; r < rows - 1; r++) {
+                            const i = r * cols + c;
+                            indices.push(i, i + cols);
+                        }
+                    }
+
+                    geometry.setAttribute(
+                        "position",
+                        new THREE.Float32BufferAttribute(vertices, 3),
+                    );
+                    geometry.setIndex(indices);
+
+                    // Create wireframe material (subtle, so morph line stands out)
+                    const material = new THREE.LineBasicMaterial({
+                        color: this.isLightMode ? 0x000000 : 0xffffff,
+                        linewidth: 1,
+                        transparent: true,
+                        opacity: 0.25,
+                    });
+
+                    this.terrainMesh = new THREE.LineSegments(
+                        geometry,
+                        material,
+                    );
+                    this.scene.add(this.terrainMesh);
+
+                    // Create morph line
+                    this.createMorphLine();
+
+                    // Reset camera
+                    this.resetView();
+                }
+
+                createMorphLine() {
+                    if (this.frames.length === 0) return;
+
+                    const samplesPerFrame = this.frames[0].length;
+                    const sampleStep = Math.max(
+                        1,
+                        Math.floor(samplesPerFrame / 64),
+                    );
+
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(
+                        Math.ceil(samplesPerFrame / sampleStep) * 3,
+                    );
+
+                    geometry.setAttribute(
+                        "position",
+                        new THREE.BufferAttribute(positions, 3),
+                    );
+
+                    const material = new THREE.LineBasicMaterial({
+                        color: this.isLightMode ? 0x0088cc : 0x66ccff,
+                        linewidth: 3,
+                        transparent: true,
+                        opacity: 1,
+                    });
+
+                    this.morphLine = new THREE.Line(geometry, material);
+                    this.scene.add(this.morphLine);
+
+                    this.updateMorphLine();
+                }
+
+                updateMorphLine() {
+                    if (!this.morphLine || this.frames.length === 0) return;
+
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+                    const sampleStep = Math.max(
+                        1,
+                        Math.floor(samplesPerFrame / 64),
+                    );
+
+                    // Interpolate frame
+                    const frameIndex = this.morphPosition * (numFrames - 1);
+                    const lowerIndex = Math.floor(frameIndex);
+                    const upperIndex = Math.min(lowerIndex + 1, numFrames - 1);
+                    const blend = frameIndex - lowerIndex;
+
+                    const z = this.morphPosition - 0.5;
+
+                    const positions =
+                        this.morphLine.geometry.attributes.position.array;
+                    let idx = 0;
+
+                    for (let s = 0; s < samplesPerFrame; s += sampleStep) {
+                        const x = s / (samplesPerFrame - 1) - 0.5;
+                        const yLower = this.frames[lowerIndex][s];
+                        const yUpper = this.frames[upperIndex][s];
+                        const y = (yLower * (1 - blend) + yUpper * blend) * 0.3;
+
+                        positions[idx++] = x;
+                        positions[idx++] = y;
+                        positions[idx++] = z;
+                    }
+
+                    this.morphLine.geometry.attributes.position.needsUpdate = true;
+                }
+
+                resetView() {
+                    this.camera.position.set(2, 1.5, 2);
+                    this.camera.lookAt(0, 0, 0);
+                    this.controls.reset();
+                }
+
+                animate = () => {
+                    requestAnimationFrame(this.animate);
+                    this.controls.update();
+                    this.renderer.render(this.scene, this.camera);
+                };
+            }
+
+            // ============================================================
+            // WAVEFORM DISPLAY (2D Canvas)
+            // ============================================================
+            class WaveformDisplay {
+                constructor(canvas) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext("2d");
+                    this.frames = [];
+                    this.morphPosition = 0.5;
+                    this.isLightMode = false;
+                    this.resizeObserver = new ResizeObserver(() =>
+                        this.resize(),
+                    );
+                    this.resizeObserver.observe(canvas.parentElement);
+                    this.resize();
+                }
+
+                resize() {
+                    const rect =
+                        this.canvas.parentElement.getBoundingClientRect();
+                    this.canvas.width = rect.width;
+                    this.canvas.height = rect.height;
+                    this.draw();
+                }
+
+                setLightMode(isLight) {
+                    this.isLightMode = isLight;
+                    this.draw();
+                }
+
+                setFrames(frames) {
+                    this.frames = frames;
+                    console.log(
+                        `WaveformDisplay: received ${frames.length} frames`,
+                    );
+                    this.draw();
+                }
+
+                setMorphPosition(position) {
+                    this.morphPosition = position;
+                    this.draw();
+                }
+
+                draw() {
+                    const { ctx, canvas, frames, morphPosition, isLightMode } =
+                        this;
+                    const { width, height } = canvas;
+                    const padding = 20;
+
+                    const bgColor = isLightMode ? "#f5f5f5" : "#000000";
+                    const lineColor = isLightMode ? "#000000" : "#ffffff";
+                    const mutedColor = isLightMode ? "#dddddd" : "#222222";
+
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, width, height);
+
+                    if (frames.length === 0) {
+                        ctx.strokeStyle = mutedColor;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(padding, height / 2);
+                        ctx.lineTo(width - padding, height / 2);
+                        ctx.stroke();
+                        return;
+                    }
+
+                    const frame = this.getInterpolatedFrame(morphPosition);
+
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+
+                    const drawWidth = width - padding * 2;
+                    const drawHeight = height - padding * 2;
+                    const centerY = height / 2;
+                    const stepX = drawWidth / (frame.length - 1);
+
+                    for (let i = 0; i < frame.length; i++) {
+                        const x = padding + i * stepX;
+                        const y = centerY - frame[i] * (drawHeight / 2) * 0.9;
+
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+
+                    ctx.stroke();
+                }
+
+                getInterpolatedFrame(position) {
+                    if (this.frames.length === 0) return new Float32Array(0);
+                    if (this.frames.length === 1) return this.frames[0];
+
+                    const frameIndex = position * (this.frames.length - 1);
+                    const lowerIndex = Math.floor(frameIndex);
+                    const upperIndex = Math.min(
+                        lowerIndex + 1,
+                        this.frames.length - 1,
+                    );
+                    const blend = frameIndex - lowerIndex;
+
+                    const lower = this.frames[lowerIndex];
+                    const upper = this.frames[upperIndex];
+                    const result = new Float32Array(lower.length);
+
+                    for (let i = 0; i < lower.length; i++) {
+                        result[i] = lower[i] * (1 - blend) + upper[i] * blend;
+                    }
+
+                    return result;
+                }
+            }
+
+            // ============================================================
+            // MAP CONTROLLER
+            // ============================================================
+            class MapController {
+                constructor(containerId, onLocationSelect) {
+                    this.containerId = containerId;
+                    this.onLocationSelect = onLocationSelect;
+                    this.map = null;
+                    this.marker = null;
+                    this.areaRect = null;
+                }
+
+                initialize() {
+                    this.map = L.map(this.containerId, {
+                        center: CONFIG.map.defaultCenter,
+                        zoom: CONFIG.map.defaultZoom,
+                        zoomControl: true,
+                    });
+
+                    L.tileLayer(
+                        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                        {
+                            attribution: "© OpenStreetMap",
+                        },
+                    ).addTo(this.map);
+
+                    this.map.on("click", (e) => {
+                        const { lat, lng } = e.latlng;
+                        this.showSelection(lat, lng);
+                        this.onLocationSelect(lat, lng);
+                    });
+                }
+
+                goTo(lat, lng, zoom = 10) {
+                    this.map.setView([lat, lng], zoom);
+                    this.showSelection(lat, lng);
+                    this.onLocationSelect(lat, lng);
+                }
+
+                showSelection(lat, lng) {
+                    if (this.marker) this.map.removeLayer(this.marker);
+                    if (this.areaRect) this.map.removeLayer(this.areaRect);
+
+                    this.marker = L.circleMarker([lat, lng], {
+                        radius: 6,
+                        color: "#ffffff",
+                        fillColor: "#ffffff",
+                        fillOpacity: 1,
+                        weight: 2,
+                    }).addTo(this.map);
+
+                    const latOffset = CONFIG.wavetable.gridSizeKm / 2 / 111.0;
+                    const lngOffset =
+                        CONFIG.wavetable.gridSizeKm /
+                        2 /
+                        (111.0 * Math.cos((lat * Math.PI) / 180));
+
+                    const bounds = [
+                        [lat - latOffset, lng - lngOffset],
+                        [lat + latOffset, lng + lngOffset],
+                    ];
+
+                    this.areaRect = L.rectangle(bounds, {
+                        color: "#ffffff",
+                        weight: 1,
+                        fillOpacity: 0.1,
+                    }).addTo(this.map);
+                }
+            }
+
+            // ============================================================
+            // SEARCH SERVICE
+            // ============================================================
+            class SearchService {
+                /**
+                 * Search for a location using Nominatim (OpenStreetMap).
+                 */
+                async search(query) {
+                    // First check if it's coordinates (lat, lng)
+                    const coordMatch = query.match(
+                        /^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/,
+                    );
+                    if (coordMatch) {
+                        return {
+                            lat: parseFloat(coordMatch[1]),
+                            lng: parseFloat(coordMatch[2]),
+                            name: `${coordMatch[1]}, ${coordMatch[2]}`,
+                        };
+                    }
+
+                    // Otherwise search via Nominatim
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+
+                    const response = await fetch(url, {
+                        headers: {
+                            "User-Agent":
+                                "Carta Terrain Synth (educational project)",
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Search failed");
+                    }
+
+                    const results = await response.json();
+
+                    if (results.length === 0) {
+                        throw new Error("Location not found");
+                    }
+
+                    const result = results[0];
+                    return {
+                        lat: parseFloat(result.lat),
+                        lng: parseFloat(result.lon),
+                        name: result.display_name,
+                    };
+                }
+            }
+
+            // ============================================================
+            // KEYBOARD INPUT
+            // ============================================================
+            class KeyboardInput {
+                constructor(onNoteOn, onNoteOff) {
+                    this.onNoteOn = onNoteOn;
+                    this.onNoteOff = onNoteOff;
+                    this.activeKeys = new Set();
+                    this.keyElements = document.querySelectorAll(".key");
+                    this.keyMap = new Map();
+
+                    this.keyElements.forEach((el) => {
+                        const key = el.dataset.key;
+                        const freq = parseFloat(el.dataset.freq);
+                        this.keyMap.set(key, { element: el, frequency: freq });
+                    });
+                }
+
+                enable() {
+                    document.addEventListener("keydown", this.handleKeyDown);
+                    document.addEventListener("keyup", this.handleKeyUp);
+
+                    this.keyElements.forEach((el) => {
+                        el.addEventListener("mousedown", this.handleMouseDown);
+                        el.addEventListener("mouseup", this.handleMouseUp);
+                        el.addEventListener("mouseleave", this.handleMouseUp);
+                        el.addEventListener(
+                            "touchstart",
+                            this.handleTouchStart,
+                        );
+                        el.addEventListener("touchend", this.handleTouchEnd);
+                    });
+                }
+
+                handleKeyDown = (e) => {
+                    if (e.target.tagName === "INPUT") return;
+
+                    const key = e.key.toLowerCase();
+                    if (this.keyMap.has(key) && !this.activeKeys.has(key)) {
+                        this.activeKeys.add(key);
+                        const { element, frequency } = this.keyMap.get(key);
+                        element.classList.add("active");
+                        this.onNoteOn(`kb_${key}`, frequency, 0.8);
+                    }
+                };
+
+                handleKeyUp = (e) => {
+                    const key = e.key.toLowerCase();
+                    if (this.keyMap.has(key)) {
+                        this.activeKeys.delete(key);
+                        const { element } = this.keyMap.get(key);
+                        element.classList.remove("active");
+                        this.onNoteOff(`kb_${key}`);
+                    }
+                };
+
+                handleMouseDown = (e) => {
+                    const key = e.currentTarget.dataset.key;
+                    const freq = parseFloat(e.currentTarget.dataset.freq);
+                    e.currentTarget.classList.add("active");
+                    this.onNoteOn(`mouse_${key}`, freq, 0.8);
+                };
+
+                handleMouseUp = (e) => {
+                    const key = e.currentTarget.dataset.key;
+                    e.currentTarget.classList.remove("active");
+                    this.onNoteOff(`mouse_${key}`);
+                };
+
+                handleTouchStart = (e) => {
+                    e.preventDefault();
+                    this.handleMouseDown(e);
+                };
+
+                handleTouchEnd = (e) => {
+                    e.preventDefault();
+                    this.handleMouseUp(e);
+                };
+            }
+
+            // ============================================================
+            // APPLICATION
+            // ============================================================
+            class App {
+                constructor() {
+                    this.terrain = new TerrainService();
+                    this.search = new SearchService();
+                    this.audio = new AudioEngine();
+                    this.midi = null;
+                    this.waveformDisplay = null;
+                    this.terrain3D = null;
+                    this.map = null;
+                    this.keyboard = null;
+
+                    this.currentLocation = null;
+                    this.wavetableData = null;
+                    this.isLightMode = false;
+                    this.isLoading = false;
+                }
+
+                async initialize() {
+                    // Initialize 3D terrain display
+                    this.terrain3D = new Terrain3DDisplay(
+                        document.getElementById("terrain-canvas"),
+                    );
+
+                    // Initialize waveform display
+                    this.waveformDisplay = new WaveformDisplay(
+                        document.getElementById("waveform-canvas"),
+                    );
+
+                    // Initialize map
+                    this.map = new MapController("map", (lat, lng) =>
+                        this.onMapClick(lat, lng),
+                    );
+                    this.map.initialize();
+
+                    // Initialize keyboard
+                    this.keyboard = new KeyboardInput(
+                        (id, freq, vel) => this.noteOn(id, freq, vel),
+                        (id) => this.noteOff(id),
+                    );
+                    this.keyboard.enable();
+
+                    // Initialize MIDI
+                    this.midi = new MidiController(
+                        (note, freq, vel) =>
+                            this.noteOn(`midi_${note}`, freq, vel),
+                        (note) => this.noteOff(`midi_${note}`),
+                        (cc, value) => this.onMidiCC(cc, value),
+                    );
+                    await this.midi.initialize();
+
+                    // Bind UI controls
+                    this.bindControls();
+
+                    this.setStatus("Click map to load terrain");
+                }
+
+                bindControls() {
+                    // Master volume
+                    document
+                        .getElementById("master-volume")
+                        .addEventListener("input", (e) => {
+                            this.audio.setMasterVolume(
+                                parseFloat(e.target.value),
+                            );
+                        });
+
+                    // Morph slider
+                    const morphSlider = document.getElementById("morph-slider");
+                    const morphValue = document.getElementById("morph-value");
+                    morphSlider.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        morphValue.textContent = value.toFixed(2);
+                        this.setMorphPosition(value);
+                    });
+
+                    // ADSR sliders
+                    ["attack", "decay", "sustain", "release"].forEach(
+                        (param) => {
+                            const slider = document.getElementById(param);
+                            const valueDisplay = document.getElementById(
+                                `${param}-value`,
+                            );
+
+                            slider.addEventListener("input", (e) => {
+                                const value = parseFloat(e.target.value);
+                                const suffix = param === "sustain" ? "" : "s";
+                                valueDisplay.textContent =
+                                    value.toFixed(2) + suffix;
+                                this.updateADSR();
+                            });
+                        },
+                    );
+
+                    // Theme toggle
+                    document
+                        .getElementById("theme-toggle")
+                        .addEventListener("click", () => {
+                            this.toggleTheme();
+                        });
+
+                    // Search
+                    const searchInput = document.getElementById("search-input");
+                    const searchBtn = document.getElementById("search-btn");
+
+                    searchBtn.addEventListener("click", () =>
+                        this.handleSearch(),
+                    );
+                    searchInput.addEventListener("keypress", (e) => {
+                        if (e.key === "Enter") this.handleSearch();
+                    });
+
+                    // Reset view button
+                    document
+                        .getElementById("reset-view")
+                        .addEventListener("click", () => {
+                            this.terrain3D.resetView();
+                        });
+                }
+
+                toggleTheme() {
+                    this.isLightMode = !this.isLightMode;
+                    document.body.classList.toggle(
+                        "light-mode",
+                        this.isLightMode,
+                    );
+                    document.getElementById("theme-toggle").textContent = this
+                        .isLightMode
+                        ? "Dark"
+                        : "Light";
+
+                    this.terrain3D.setLightMode(this.isLightMode);
+                    this.waveformDisplay.setLightMode(this.isLightMode);
+                }
+
+                async handleSearch() {
+                    const query = document
+                        .getElementById("search-input")
+                        .value.trim();
+                    if (!query) return;
+
+                    this.setStatus("Searching...", "loading");
+
+                    try {
+                        const result = await this.search.search(query);
+                        this.setStatus(`Found: ${result.name}`);
+                        this.map.goTo(result.lat, result.lng);
+                    } catch (error) {
+                        this.setStatus(
+                            "Search failed: " + error.message,
+                            "error",
+                        );
+                    }
+                }
+
+                updateADSR() {
+                    this.audio.setADSR(
+                        parseFloat(document.getElementById("attack").value),
+                        parseFloat(document.getElementById("decay").value),
+                        parseFloat(document.getElementById("sustain").value),
+                        parseFloat(document.getElementById("release").value),
+                    );
+                }
+
+                async onMapClick(lat, lng) {
+                    // Prevent double-loading
+                    if (this.isLoading) {
+                        console.log("Already loading, ignoring click");
+                        return;
+                    }
+
+                    // Initialize audio on first interaction
+                    await this.audio.initialize();
+
+                    this.currentLocation = { lat, lng };
+                    document.getElementById("location-display").textContent =
+                        `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+                    // Show loading
+                    this.isLoading = true;
+                    document
+                        .getElementById("map-loading")
+                        .classList.remove("hidden");
+
+                    try {
+                        // Fetch terrain
+                        console.log(`Fetching terrain for ${lat}, ${lng}...`);
+                        this.wavetableData = await this.terrain.fetchElevation(
+                            lat,
+                            lng,
+                        );
+                        console.log(
+                            "Terrain data received:",
+                            this.wavetableData,
+                        );
+
+                        // Load into audio engine
+                        this.audio.loadWavetable(this.wavetableData.frames);
+
+                        // Update visualizations
+                        console.log("Updating visualizations...");
+                        this.waveformDisplay.setFrames(
+                            this.wavetableData.frames,
+                        );
+                        this.terrain3D.setFrames(this.wavetableData.frames);
+
+                        // Update status
+                        const { globalMin, globalMax } =
+                            this.wavetableData.metadata;
+                        this.setStatus(
+                            `Terrain loaded: ${Math.round(globalMin)}m - ${Math.round(globalMax)}m`,
+                        );
+                    } catch (error) {
+                        console.error("Failed to load terrain:", error);
+                        this.setStatus(
+                            "Failed to load terrain: " + error.message,
+                            "error",
+                        );
+                    } finally {
+                        this.isLoading = false;
+                        document
+                            .getElementById("map-loading")
+                            .classList.add("hidden");
+                    }
+                }
+
+                noteOn(noteId, frequency, velocity) {
+                    this.audio.noteOn(noteId, frequency, velocity);
+                }
+
+                noteOff(noteId) {
+                    this.audio.noteOff(noteId);
+                }
+
+                setMorphPosition(position) {
+                    this.audio.setMorphPosition(position);
+                    this.waveformDisplay.setMorphPosition(position);
+                    this.terrain3D.setMorphPosition(position);
+                }
+
+                onMidiCC(cc, value) {
+                    if (cc === 1) {
+                        const morphSlider =
+                            document.getElementById("morph-slider");
+                        morphSlider.value = value;
+                        document.getElementById("morph-value").textContent =
+                            value.toFixed(2);
+                        this.setMorphPosition(value);
+                    }
+                }
+
+                setStatus(message, type = "info") {
+                    document.getElementById("status-message").textContent =
+                        message;
+                }
+
+                setMidiStatus(connected, deviceName) {
+                    const indicator = document.getElementById("midi-indicator");
+                    const status = document.getElementById("midi-status");
+
+                    if (connected) {
+                        indicator.classList.add("connected");
+                        status.textContent = deviceName;
+                    } else {
+                        indicator.classList.remove("connected");
+                        status.textContent = deviceName;
+                    }
+                }
+            }
+
+            // ============================================================
+            // INITIALIZATION
+            // ============================================================
+            const app = new App();
+            document.addEventListener("DOMContentLoaded", () =>
+                app.initialize(),
+            );
+        </script>
+    </body>
+</html>
