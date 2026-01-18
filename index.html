@@ -857,6 +857,11 @@
                             id="search-input"
                             placeholder="Search location or coords (lat, lng)"
                         />
+                        <select id="area-size">
+                            <option value="1">1km</option>
+                            <option value="10" selected>10km</option>
+                            <option value="100">100km</option>
+                        </select>
                         <button id="search-btn">Go</button>
                         <button
                             id="location-btn"
@@ -1484,7 +1489,7 @@
                  * Generate cache key from coordinates.
                  */
                 getCacheKey(lat, lng) {
-                    return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+                    return `${lat.toFixed(4)},${lng.toFixed(4)},${CONFIG.wavetable.gridSizeKm}km`;
                 }
 
                 /**
@@ -4111,9 +4116,15 @@
                     // Initialize audio on first interaction
                     await this.audio.initialize();
 
+                    // Update grid size from dropdown
+                    const areaSize = parseFloat(
+                        document.getElementById("area-size").value,
+                    );
+                    CONFIG.wavetable.gridSizeKm = areaSize;
+
                     this.currentLocation = { lat, lng };
                     document.getElementById("location-display").textContent =
-                        `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        `${lat.toFixed(4)}, ${lng.toFixed(4)} (${areaSize}km)`;
 
                     // Show loading
                     this.isLoading = true;
@@ -4123,7 +4134,9 @@
 
                     try {
                         // Fetch terrain
-                        console.log(`Fetching terrain for ${lat}, ${lng}...`);
+                        console.log(
+                            `Fetching terrain for ${lat}, ${lng} at ${areaSize}km...`,
+                        );
                         this.wavetableData = await this.terrain.fetchElevation(
                             lat,
                             lng,
