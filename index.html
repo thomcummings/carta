@@ -284,6 +284,28 @@
                 inset: 0;
             }
 
+            /* Terrain empty state */
+            .terrain-empty {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 5;
+                pointer-events: none;
+            }
+
+            .terrain-empty span {
+                color: var(--text-muted);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+
+            .terrain-empty.hidden {
+                display: none;
+            }
+
             /* Waveform panel inset in bottom-right corner */
             #waveform-panel {
                 position: absolute;
@@ -895,6 +917,9 @@
                 <section id="visualization">
                     <div class="viz-panel" id="terrain-panel">
                         <span class="viz-label">Terrain</span>
+                        <div class="terrain-empty" id="terrain-empty">
+                            <span>Click map to load terrain</span>
+                        </div>
                         <canvas id="terrain-canvas"></canvas>
                         <div class="terrain-controls">
                             <button id="reset-view" title="Reset camera view">
@@ -4155,6 +4180,11 @@
                             this.wavetableData.frames,
                         );
                         this.terrain3D.setFrames(this.wavetableData.frames);
+
+                        // Hide empty state
+                        document
+                            .getElementById("terrain-empty")
+                            .classList.add("hidden");
 
                         // Update status
                         const { globalMin, globalMax } =
