@@ -373,18 +373,7 @@
             }
 
             #scale-controls select {
-                background: var(--bg);
-                border: 1px solid var(--border);
-                color: var(--text);
-                padding: 4px 8px;
-                font-family: inherit;
                 font-size: 11px;
-                cursor: pointer;
-            }
-
-            #scale-controls select:focus {
-                outline: none;
-                border-color: var(--text-muted);
             }
 
             /* Morph slider */
@@ -431,16 +420,6 @@
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
                 color: var(--text-muted);
-            }
-
-            #morph-control .mod-section select {
-                background: var(--bg);
-                border: 1px solid var(--border);
-                color: var(--text);
-                padding: 4px 8px;
-                font-family: inherit;
-                font-size: 10px;
-                cursor: pointer;
             }
 
             #morph-control .mod-rate {
@@ -558,16 +537,6 @@
                 width: 60px;
             }
 
-            .fx-param select {
-                background: var(--bg);
-                border: 1px solid var(--border);
-                color: var(--text);
-                padding: 2px 4px;
-                font-family: inherit;
-                font-size: 9px;
-                cursor: pointer;
-            }
-
             /* ADSR controls */
             #adsr-controls {
                 display: grid;
@@ -633,6 +602,46 @@
                 background: var(--text);
                 border: none;
                 border-radius: 50%;
+            }
+
+            /* ============================================================
+           SELECT/DROPDOWN STYLING
+           ============================================================ */
+            select {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                background-color: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 24px 4px 8px;
+                font-family: var(--font-mono);
+                font-size: 10px;
+                cursor: pointer;
+                border-radius: 0;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23666' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 8px center;
+                background-size: 8px;
+            }
+
+            .light-mode select {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23888' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+            }
+
+            select:hover {
+                border-color: var(--text-muted);
+            }
+
+            select:focus {
+                outline: none;
+                border-color: var(--text);
+            }
+
+            select option {
+                background: var(--bg);
+                color: var(--text);
+                padding: 4px 8px;
             }
 
             /* ============================================================
