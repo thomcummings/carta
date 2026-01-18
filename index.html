@@ -466,6 +466,39 @@
                 width: 50px;
             }
 
+            /* LFO Controls */
+            #lfo-controls {
+                display: flex;
+                gap: 16px;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .lfo-section {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .lfo-section label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                min-width: 40px;
+            }
+
+            .lfo-section input[type="range"] {
+                width: 80px;
+            }
+
+            .lfo-rate-value {
+                font-size: 10px;
+                color: var(--text-muted);
+                min-width: 30px;
+            }
+
             /* Filter, Reverb & Generative controls - single row */
             #fx-controls {
                 display: flex;
@@ -1031,25 +1064,13 @@
                     <label for="morph-mod-source">Mod</label>
                     <select id="morph-mod-source">
                         <option value="manual">Manual</option>
-                        <option value="lfo">LFO</option>
+                        <option value="lfo1">LFO 1</option>
+                        <option value="lfo2">LFO 2</option>
                         <option value="snh">S&H</option>
                         <option value="drift">Drift</option>
                         <option value="midi-wheel">Mod Wheel</option>
-                        <option value="midi-velocity">Vel</option>
+                        <option value="midi-velocity">Velocity</option>
                     </select>
-                    <input
-                        type="range"
-                        id="morph-mod-rate"
-                        class="mod-rate"
-                        min="0.1"
-                        max="10"
-                        step="0.1"
-                        value="1"
-                        data-tooltip="Rate (Hz)"
-                    />
-                    <span class="mod-rate-value" id="morph-mod-rate-value"
-                        >1.0</span
-                    >
                     <div class="mod-range-group">
                         <label>Rng</label>
                         <input
@@ -1074,6 +1095,36 @@
                             data-tooltip="Offset"
                         />
                     </div>
+                </div>
+            </div>
+
+            <!-- LFO Controls -->
+            <div id="lfo-controls">
+                <div class="lfo-section">
+                    <label>LFO 1</label>
+                    <input
+                        type="range"
+                        id="lfo1-rate"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value="1"
+                        data-tooltip="LFO 1 Rate"
+                    />
+                    <span class="lfo-rate-value" id="lfo1-rate-value">1.0</span>
+                </div>
+                <div class="lfo-section">
+                    <label>LFO 2</label>
+                    <input
+                        type="range"
+                        id="lfo2-rate"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value="1"
+                        data-tooltip="LFO 2 Rate"
+                    />
+                    <span class="lfo-rate-value" id="lfo2-rate-value">1.0</span>
                 </div>
             </div>
 
@@ -1108,6 +1159,27 @@
                         <span class="value" id="filter-resonance-value"
                             >0.0</span
                         >
+                    </div>
+                    <div class="fx-param">
+                        <label>Mod</label>
+                        <select id="filter-mod-source">
+                            <option value="manual">Off</option>
+                            <option value="lfo1">LFO 1</option>
+                            <option value="lfo2">LFO 2</option>
+                            <option value="snh">S&H</option>
+                            <option value="drift">Drift</option>
+                            <option value="midi-wheel">Mod Wheel</option>
+                            <option value="midi-velocity">Velocity</option>
+                        </select>
+                        <input
+                            type="range"
+                            id="filter-mod-range"
+                            min="0.01"
+                            max="1"
+                            step="0.01"
+                            value="0.5"
+                            data-tooltip="Mod Range"
+                        />
                     </div>
                 </div>
                 <div class="fx-section">
@@ -3556,49 +3628,94 @@
             }
 
             // ============================================================
-            // MORPH MODULATOR (LFO, S&H, MIDI)
+            // MODULATION SYSTEM (LFOs, S&H, Drift, MIDI)
             // ============================================================
-            class MorphModulator {
-                constructor(onMorphChange) {
-                    this.onMorphChange = onMorphChange;
-                    this.mode = "manual"; // manual, lfo, snh, drift, midi-wheel, midi-velocity
+
+            // Single LFO instance with independent rate
+            class LFO {
+                constructor() {
                     this.rate = 1; // Hz
-                    this.range = 1; // 0-1, how much of the terrain to sweep
-                    this.offset = 0; // 0-1, starting point of modulation
-                    this.animationId = null;
-                    this.lastTime = 0;
                     this.phase = 0;
+                }
+
+                setRate(hz) {
+                    this.rate = Math.max(0.1, hz);
+                }
+
+                // Returns 0-1 value based on current phase
+                getValue() {
+                    return (Math.sin(this.phase) + 1) / 2;
+                }
+
+                // Advance phase by deltaTime
+                tick(deltaTime) {
+                    this.phase += deltaTime * this.rate * Math.PI * 2;
+                    if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
+                }
+            }
+
+            // Modulation manager - runs the animation loop and provides values
+            class ModulationManager {
+                constructor() {
+                    this.lfo1 = new LFO();
+                    this.lfo2 = new LFO();
+
+                    // S&H state
+                    this.snhRate = 1;
                     this.snhValue = 0.5;
                     this.snhLastTick = 0;
-                    // Drift mode: smoothly interpolate between random targets
+
+                    // Drift state
+                    this.driftRate = 1;
                     this.driftValue = 0.5;
                     this.driftTarget = 0.5;
                     this.driftLastTick = 0;
+
+                    // MIDI values
                     this.midiWheelValue = 0.5;
                     this.midiVelocityValue = 0.5;
-                    this.baseValue = 0.5; // manual slider value
+
+                    // Animation
+                    this.animationId = null;
+                    this.lastTime = 0;
+                    this.running = false;
+
+                    // Registered destinations
+                    this.destinations = [];
                 }
 
-                setMode(mode) {
-                    this.mode = mode;
-                    if (
-                        mode === "manual" ||
-                        mode === "midi-wheel" ||
-                        mode === "midi-velocity"
-                    ) {
-                        this.stop();
-                    } else {
+                // Register a modulation destination
+                addDestination(dest) {
+                    this.destinations.push(dest);
+                    this.checkRunning();
+                }
+
+                // Check if we need to run the animation loop
+                checkRunning() {
+                    const needsAnimation = this.destinations.some(
+                        (d) =>
+                            d.mode === "lfo1" ||
+                            d.mode === "lfo2" ||
+                            d.mode === "snh" ||
+                            d.mode === "drift",
+                    );
+
+                    if (needsAnimation && !this.running) {
                         this.start();
+                    } else if (!needsAnimation && this.running) {
+                        this.stop();
                     }
                 }
 
                 start() {
-                    if (this.animationId) return;
+                    if (this.running) return;
+                    this.running = true;
                     this.lastTime = performance.now();
                     this.tick();
                 }
 
                 stop() {
+                    this.running = false;
                     if (this.animationId) {
                         cancelAnimationFrame(this.animationId);
                         this.animationId = null;
@@ -3606,51 +3723,123 @@
                 }
 
                 tick() {
+                    if (!this.running) return;
+
                     const now = performance.now();
                     const deltaTime = (now - this.lastTime) / 1000;
                     this.lastTime = now;
 
-                    let newValue = this.baseValue;
+                    // Update LFOs
+                    this.lfo1.tick(deltaTime);
+                    this.lfo2.tick(deltaTime);
 
-                    if (this.mode === "lfo") {
-                        // LFO: smooth sine wave
-                        this.phase += deltaTime * this.rate * Math.PI * 2;
-                        if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
-                        const rawValue = (Math.sin(this.phase) + 1) / 2; // 0-1 range
-                        newValue = this.applyRangeOffset(rawValue);
-                        this.onMorphChange(newValue);
-                    } else if (this.mode === "snh") {
-                        // S&H: random value at rate intervals
-                        this.snhLastTick += deltaTime;
-                        const interval = 1 / this.rate;
-                        if (this.snhLastTick >= interval) {
-                            this.snhLastTick = 0;
-                            this.snhValue = Math.random();
-                        }
-                        newValue = this.applyRangeOffset(this.snhValue);
-                        this.onMorphChange(newValue);
-                    } else if (this.mode === "drift") {
-                        // Drift: smoothly interpolate toward random targets
-                        this.driftLastTick += deltaTime;
-                        const interval = 1 / this.rate;
-                        if (this.driftLastTick >= interval) {
-                            this.driftLastTick = 0;
-                            this.driftTarget = Math.random();
-                        }
-                        // Smooth interpolation toward target
-                        const smoothing =
-                            1 - Math.exp(-deltaTime * this.rate * 3);
-                        this.driftValue +=
-                            (this.driftTarget - this.driftValue) * smoothing;
-                        newValue = this.applyRangeOffset(this.driftValue);
-                        this.onMorphChange(newValue);
+                    // Update S&H
+                    this.snhLastTick += deltaTime;
+                    const snhInterval = 1 / this.snhRate;
+                    if (this.snhLastTick >= snhInterval) {
+                        this.snhLastTick = 0;
+                        this.snhValue = Math.random();
                     }
+
+                    // Update Drift
+                    this.driftLastTick += deltaTime;
+                    const driftInterval = 1 / this.driftRate;
+                    if (this.driftLastTick >= driftInterval) {
+                        this.driftLastTick = 0;
+                        this.driftTarget = Math.random();
+                    }
+                    const smoothing =
+                        1 - Math.exp(-deltaTime * this.driftRate * 3);
+                    this.driftValue +=
+                        (this.driftTarget - this.driftValue) * smoothing;
+
+                    // Update all destinations
+                    this.destinations.forEach((dest) => {
+                        const rawValue = this.getRawValue(dest.mode);
+                        if (rawValue !== null) {
+                            dest.update(rawValue);
+                        }
+                    });
 
                     this.animationId = requestAnimationFrame(() => this.tick());
                 }
 
-                setRate(hz) {
-                    this.rate = Math.max(0.1, hz);
+                // Get raw 0-1 value for a modulation source
+                getRawValue(mode) {
+                    switch (mode) {
+                        case "lfo1":
+                            return this.lfo1.getValue();
+                        case "lfo2":
+                            return this.lfo2.getValue();
+                        case "snh":
+                            return this.snhValue;
+                        case "drift":
+                            return this.driftValue;
+                        case "midi-wheel":
+                            return this.midiWheelValue;
+                        case "midi-velocity":
+                            return this.midiVelocityValue;
+                        default:
+                            return null;
+                    }
+                }
+
+                setLfo1Rate(hz) {
+                    this.lfo1.setRate(hz);
+                }
+
+                setLfo2Rate(hz) {
+                    this.lfo2.setRate(hz);
+                }
+
+                setSnhRate(hz) {
+                    this.snhRate = Math.max(0.1, hz);
+                }
+
+                setDriftRate(hz) {
+                    this.driftRate = Math.max(0.1, hz);
+                }
+
+                setMidiWheel(value) {
+                    this.midiWheelValue = value;
+                    // Immediately update destinations using midi-wheel
+                    this.destinations.forEach((dest) => {
+                        if (dest.mode === "midi-wheel") {
+                            dest.update(value);
+                        }
+                    });
+                }
+
+                setMidiVelocity(velocity) {
+                    this.midiVelocityValue = velocity;
+                    // Immediately update destinations using midi-velocity
+                    this.destinations.forEach((dest) => {
+                        if (dest.mode === "midi-velocity") {
+                            dest.update(velocity);
+                        }
+                    });
+                }
+            }
+
+            // Modulation destination - wraps a parameter with range/offset
+            class ModDestination {
+                constructor(manager, onChange) {
+                    this.manager = manager;
+                    this.onChange = onChange;
+                    this.mode = "manual";
+                    this.range = 1;
+                    this.offset = 0;
+                    this.baseValue = 0.5;
+
+                    manager.addDestination(this);
+                }
+
+                setMode(mode) {
+                    this.mode = mode;
+                    if (mode === "manual") {
+                        this.onChange(this.baseValue);
+                    }
+                    this.manager.checkRunning();
                 }
 
                 setRange(range) {
@@ -3661,37 +3850,18 @@
                     this.offset = Math.max(0, Math.min(1, offset));
                 }
 
-                // Apply range and offset to a 0-1 modulation value
-                applyRangeOffset(rawValue) {
-                    // rawValue is 0-1, scale it to range and shift by offset
-                    // Clamp result to 0-1
-                    const scaled = this.offset + rawValue * this.range;
-                    return Math.max(0, Math.min(1, scaled));
-                }
-
                 setBaseValue(value) {
                     this.baseValue = value;
                     if (this.mode === "manual") {
-                        this.onMorphChange(value);
+                        this.onChange(value);
                     }
                 }
 
-                // Called by MIDI controller
-                setMidiWheel(value) {
-                    this.midiWheelValue = value;
-                    if (this.mode === "midi-wheel") {
-                        const scaled = this.applyRangeOffset(value);
-                        this.onMorphChange(scaled);
-                    }
-                }
-
-                // Called when a note is played with velocity
-                setMidiVelocity(velocity) {
-                    this.midiVelocityValue = velocity;
-                    if (this.mode === "midi-velocity") {
-                        const scaled = this.applyRangeOffset(velocity);
-                        this.onMorphChange(scaled);
-                    }
+                // Called by ModulationManager with raw 0-1 value
+                update(rawValue) {
+                    const scaled = this.offset + rawValue * this.range;
+                    const clamped = Math.max(0, Math.min(1, scaled));
+                    this.onChange(clamped);
                 }
 
                 getMode() {
@@ -3714,7 +3884,11 @@
                     this.map = null;
                     this.keyboard = null;
                     this.sequencer = null;
-                    this.morphModulator = null;
+
+                    // Modulation system
+                    this.modManager = null;
+                    this.morphMod = null;
+                    this.filterMod = null;
 
                     this.currentLocation = null;
                     this.wavetableData = null;
@@ -3762,13 +3936,42 @@
                     );
                     this.sequencer.setScaleManager(this.scaleManager);
 
-                    // Initialize morph modulator
-                    this.morphModulator = new MorphModulator((value) => {
-                        this.setMorphPosition(value);
-                        document.getElementById("morph-slider").value = value;
-                        document.getElementById("morph-value").textContent =
-                            value.toFixed(2);
-                    });
+                    // Initialize modulation system
+                    this.modManager = new ModulationManager();
+
+                    // Morph modulation destination
+                    this.morphMod = new ModDestination(
+                        this.modManager,
+                        (value) => {
+                            this.setMorphPosition(value);
+                            document.getElementById("morph-slider").value =
+                                value;
+                            document.getElementById("morph-value").textContent =
+                                value.toFixed(2);
+                        },
+                    );
+
+                    // Filter cutoff modulation destination
+                    this.filterMod = new ModDestination(
+                        this.modManager,
+                        (value) => {
+                            // value is 0-1, map to filter frequency (20Hz - 20kHz logarithmic)
+                            const minFreq = 20;
+                            const maxFreq = 20000;
+                            const freq =
+                                minFreq * Math.pow(maxFreq / minFreq, value);
+                            this.audio.setFilterCutoff(freq);
+                            // Update display
+                            const display =
+                                freq >= 1000
+                                    ? `${(freq / 1000).toFixed(1)}kHz`
+                                    : `${Math.round(freq)}Hz`;
+                            document.getElementById(
+                                "filter-cutoff-value",
+                            ).textContent = display;
+                        },
+                    );
+                    this.filterMod.baseValue = 1; // Start fully open
 
                     // Initialize custom styled dropdowns
                     initCustomSelects();
@@ -3812,51 +4015,60 @@
                     morphSlider.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         morphValue.textContent = value.toFixed(2);
-                        this.morphModulator.setBaseValue(value);
+                        this.morphMod.setBaseValue(value);
                     });
 
                     // Morph modulation source selector
                     document
                         .getElementById("morph-mod-source")
                         .addEventListener("change", (e) => {
-                            this.morphModulator.setMode(e.target.value);
-                            // Show/hide rate slider based on mode
-                            const rateSlider =
-                                document.getElementById("morph-mod-rate");
-                            const rateValue = document.getElementById(
-                                "morph-mod-rate-value",
-                            );
-                            const showRate =
-                                e.target.value === "lfo" ||
-                                e.target.value === "snh" ||
-                                e.target.value === "drift";
-                            rateSlider.style.display = showRate ? "" : "none";
-                            rateValue.style.display = showRate ? "" : "none";
-                        });
-                    document
-                        .getElementById("morph-mod-rate")
-                        .addEventListener("input", (e) => {
-                            const value = parseFloat(e.target.value);
-                            this.morphModulator.setRate(value);
-                            document.getElementById(
-                                "morph-mod-rate-value",
-                            ).textContent = value.toFixed(1);
+                            this.morphMod.setMode(e.target.value);
                         });
 
-                    // Modulation range and offset
+                    // Morph modulation range and offset
                     document
                         .getElementById("morph-mod-range")
                         .addEventListener("input", (e) => {
-                            this.morphModulator.setRange(
-                                parseFloat(e.target.value),
-                            );
+                            this.morphMod.setRange(parseFloat(e.target.value));
                         });
                     document
                         .getElementById("morph-mod-offset")
                         .addEventListener("input", (e) => {
-                            this.morphModulator.setOffset(
-                                parseFloat(e.target.value),
-                            );
+                            this.morphMod.setOffset(parseFloat(e.target.value));
+                        });
+
+                    // LFO rate controls
+                    document
+                        .getElementById("lfo1-rate")
+                        .addEventListener("input", (e) => {
+                            const value = parseFloat(e.target.value);
+                            this.modManager.setLfo1Rate(value);
+                            document.getElementById(
+                                "lfo1-rate-value",
+                            ).textContent = value.toFixed(1);
+                        });
+                    document
+                        .getElementById("lfo2-rate")
+                        .addEventListener("input", (e) => {
+                            const value = parseFloat(e.target.value);
+                            this.modManager.setLfo2Rate(value);
+                            document.getElementById(
+                                "lfo2-rate-value",
+                            ).textContent = value.toFixed(1);
+                        });
+
+                    // Filter modulation source selector
+                    document
+                        .getElementById("filter-mod-source")
+                        .addEventListener("change", (e) => {
+                            this.filterMod.setMode(e.target.value);
+                        });
+
+                    // Filter modulation range
+                    document
+                        .getElementById("filter-mod-range")
+                        .addEventListener("input", (e) => {
+                            this.filterMod.setRange(parseFloat(e.target.value));
                         });
 
                     // Filter controls
@@ -3867,11 +4079,18 @@
                     );
                     filterCutoff.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
-                        this.audio.setFilterCutoff(value);
-                        filterCutoffValue.textContent =
-                            value >= 1000
-                                ? `${(value / 1000).toFixed(1)}kHz`
-                                : `${Math.round(value)}Hz`;
+                        // Convert linear slider to 0-1 for modulation base
+                        const normalized =
+                            Math.log(value / 20) / Math.log(20000 / 20);
+                        this.filterMod.setBaseValue(normalized);
+                        // If in manual mode, update directly
+                        if (this.filterMod.getMode() === "manual") {
+                            this.audio.setFilterCutoff(value);
+                            filterCutoffValue.textContent =
+                                value >= 1000
+                                    ? `${(value / 1000).toFixed(1)}kHz`
+                                    : `${Math.round(value)}Hz`;
+                        }
                     });
 
                     const filterResonance =
@@ -4243,15 +4462,8 @@
                 }
 
                 noteOn(noteId, frequency, velocity) {
-                    // Update morph modulator with velocity
-                    this.morphModulator.setMidiVelocity(velocity);
-                    // Update slider display if in velocity mode
-                    if (this.morphModulator.getMode() === "midi-velocity") {
-                        document.getElementById("morph-slider").value =
-                            velocity;
-                        document.getElementById("morph-value").textContent =
-                            velocity.toFixed(2);
-                    }
+                    // Update modulation system with velocity
+                    this.modManager.setMidiVelocity(velocity);
                     this.audio.noteOn(noteId, frequency, velocity);
                 }
 
@@ -4268,14 +4480,7 @@
                 onMidiCC(cc, value) {
                     // CC1 = Mod wheel
                     if (cc === 1) {
-                        this.morphModulator.setMidiWheel(value);
-                        // Update slider display if in midi-wheel mode
-                        if (this.morphModulator.getMode() === "midi-wheel") {
-                            document.getElementById("morph-slider").value =
-                                value;
-                            document.getElementById("morph-value").textContent =
-                                value.toFixed(2);
-                        }
+                        this.modManager.setMidiWheel(value);
                     }
                 }
 
