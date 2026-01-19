@@ -4837,8 +4837,8 @@
                         if (highThumb)
                             highThumb.dataset.value =
                                 preset.sequencer.octaveHigh;
-                        // Trigger update through scale manager
-                        this.scaleManager.setOctaveRange(
+                        // Trigger update through sequencer
+                        this.sequencer.setOctaveRange(
                             preset.sequencer.octaveLow,
                             preset.sequencer.octaveHigh,
                         );
