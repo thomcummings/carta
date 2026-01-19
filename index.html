@@ -812,6 +812,13 @@
                 letter-spacing: 0.5px;
             }
 
+            .osc-count {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 9px;
+                color: var(--text-muted);
+                letter-spacing: 0.5px;
+            }
+
             /* ============================================================
            LOADING STATE
            ============================================================ */
@@ -1160,6 +1167,52 @@
                         />
                         <span class="param-value" id="release-value">0.30</span>
                     </div>
+                    <div class="column-subheader">Unison</div>
+                    <div class="column-param">
+                        <label>Voices</label>
+                        <input
+                            type="range"
+                            id="unison-count"
+                            min="1"
+                            max="7"
+                            step="2"
+                            value="1"
+                            data-tooltip="Unison Voices (1-7)"
+                        />
+                        <span class="param-value" id="unison-count-value"
+                            >1</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Detune</label>
+                        <input
+                            type="range"
+                            id="unison-detune"
+                            min="0"
+                            max="50"
+                            step="1"
+                            value="15"
+                            data-tooltip="Detune Spread (cents)"
+                        />
+                        <span class="param-value" id="unison-detune-value"
+                            >15¢</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Spread</label>
+                        <input
+                            type="range"
+                            id="unison-spread"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.7"
+                            data-tooltip="Stereo Spread"
+                        />
+                        <span class="param-value" id="unison-spread-value"
+                            >70%</span
+                        >
+                    </div>
                 </div>
 
                 <!-- Sequencer Column -->
@@ -1378,6 +1431,7 @@
             <footer id="status">
                 <span id="status-message">Click map to load terrain</span>
                 <span class="keyboard-hint">Keys A-L to play</span>
+                <span class="osc-count" id="osc-count">Osc: 0</span>
                 <div class="midi-status">
                     <span class="midi-indicator" id="midi-indicator"></span>
                     <span id="midi-status">No MIDI</span>
@@ -2139,6 +2193,12 @@
                     this.reverbMix = 0;
                     this.reverbDecay = 0.5;
                     this.initialized = false;
+                    // Unison settings
+                    this.unisonCount = 1;
+                    this.unisonDetune = 15; // cents
+                    this.unisonSpread = 0.7; // stereo spread 0-1
+                    this.oscillatorCount = 0;
+                    this.onOscillatorCountChange = null;
                 }
 
                 async initialize() {
@@ -2317,44 +2377,86 @@
 
                     this.triggerAttack(voice.envGain);
 
-                    voice.oscA.start();
-                    voice.oscB.start();
+                    // Start all unison oscillators
+                    for (const unisonVoice of voice.unisonVoices) {
+                        unisonVoice.oscA.start();
+                        unisonVoice.oscB.start();
+                    }
+
+                    this.updateOscillatorCount();
                 }
 
                 createVoice(frequency, velocity) {
-                    const oscA = this.audioCtx.createOscillator();
-                    const oscB = this.audioCtx.createOscillator();
-                    const gainA = this.audioCtx.createGain();
-                    const gainB = this.audioCtx.createGain();
                     const envGain = this.audioCtx.createGain();
                     const velGain = this.audioCtx.createGain();
 
-                    oscA.connect(gainA);
-                    oscB.connect(gainB);
-                    gainA.connect(envGain);
-                    gainB.connect(envGain);
+                    // Create unison voices
+                    const unisonVoices = [];
+                    const count = this.unisonCount;
+
+                    // Calculate detune offsets: spread evenly from -detune to +detune
+                    // For count=1: [0], count=3: [-1, 0, 1], count=5: [-1, -0.5, 0, 0.5, 1], etc.
+                    for (let i = 0; i < count; i++) {
+                        const oscA = this.audioCtx.createOscillator();
+                        const oscB = this.audioCtx.createOscillator();
+                        const gainA = this.audioCtx.createGain();
+                        const gainB = this.audioCtx.createGain();
+                        const panner = this.audioCtx.createStereoPanner();
+
+                        // Calculate detune for this voice (-1 to +1 normalized)
+                        const detuneNorm =
+                            count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+                        const detuneCents = detuneNorm * this.unisonDetune;
+
+                        // Calculate pan position
+                        const panPosition = detuneNorm * this.unisonSpread;
+                        panner.pan.value = panPosition;
+
+                        // Set frequency with detune
+                        oscA.frequency.value = frequency;
+                        oscB.frequency.value = frequency;
+                        oscA.detune.value = detuneCents;
+                        oscB.detune.value = detuneCents;
+
+                        // Connect: osc -> gain -> panner -> envGain
+                        oscA.connect(gainA);
+                        oscB.connect(gainB);
+                        gainA.connect(panner);
+                        gainB.connect(panner);
+                        panner.connect(envGain);
+
+                        unisonVoices.push({
+                            oscA,
+                            oscB,
+                            gainA,
+                            gainB,
+                            panner,
+                            detuneCents,
+                        });
+                    }
+
+                    // Scale gain by number of voices to maintain consistent volume
+                    const voiceGain = 1 / Math.sqrt(count);
                     envGain.connect(velGain);
-                    // Connect to filter (which then goes to reverb/master)
                     velGain.connect(this.filter);
+                    velGain.gain.value = velocity * voiceGain;
 
-                    oscA.frequency.value = frequency;
-                    oscB.frequency.value = frequency;
-
-                    velGain.gain.value = velocity;
-
-                    this.applyMorph({ oscA, oscB, gainA, gainB });
+                    // Apply morph to all unison voices
+                    for (const uv of unisonVoices) {
+                        this.applyMorphToOscPair(uv);
+                    }
 
                     envGain.gain.value = 0;
 
-                    return { oscA, oscB, gainA, gainB, envGain, velGain };
+                    return { unisonVoices, envGain, velGain, frequency };
                 }
 
-                applyMorph(voice) {
+                applyMorphToOscPair(oscPair) {
                     if (this.periodicWaves.length <= 1) {
-                        voice.oscA.setPeriodicWave(this.periodicWaves[0]);
-                        voice.oscB.setPeriodicWave(this.periodicWaves[0]);
-                        voice.gainA.gain.value = 1;
-                        voice.gainB.gain.value = 0;
+                        oscPair.oscA.setPeriodicWave(this.periodicWaves[0]);
+                        oscPair.oscB.setPeriodicWave(this.periodicWaves[0]);
+                        oscPair.gainA.gain.value = 1;
+                        oscPair.gainB.gain.value = 0;
                         return;
                     }
 
@@ -2367,10 +2469,21 @@
                     );
                     const blend = frameIndex - lowerFrame;
 
-                    voice.oscA.setPeriodicWave(this.periodicWaves[lowerFrame]);
-                    voice.oscB.setPeriodicWave(this.periodicWaves[upperFrame]);
-                    voice.gainA.gain.value = 1 - blend;
-                    voice.gainB.gain.value = blend;
+                    oscPair.oscA.setPeriodicWave(
+                        this.periodicWaves[lowerFrame],
+                    );
+                    oscPair.oscB.setPeriodicWave(
+                        this.periodicWaves[upperFrame],
+                    );
+                    oscPair.gainA.gain.value = 1 - blend;
+                    oscPair.gainB.gain.value = blend;
+                }
+
+                applyMorph(voice) {
+                    // Apply morph to all unison voices
+                    for (const uv of voice.unisonVoices) {
+                        this.applyMorphToOscPair(uv);
+                    }
                 }
 
                 noteOff(noteId) {
@@ -2381,10 +2494,65 @@
 
                     const stopTime =
                         this.audioCtx.currentTime + this.adsr.release + 0.1;
-                    voice.oscA.stop(stopTime);
-                    voice.oscB.stop(stopTime);
+
+                    // Stop all unison oscillators
+                    for (const uv of voice.unisonVoices) {
+                        uv.oscA.stop(stopTime);
+                        uv.oscB.stop(stopTime);
+                    }
 
                     this.voices.delete(noteId);
+
+                    // Update count after release time
+                    setTimeout(
+                        () => this.updateOscillatorCount(),
+                        (this.adsr.release + 0.15) * 1000,
+                    );
+                }
+
+                updateOscillatorCount() {
+                    let count = 0;
+                    for (const voice of this.voices.values()) {
+                        count += voice.unisonVoices.length * 2; // 2 oscillators per unison voice
+                    }
+                    this.oscillatorCount = count;
+                    if (this.onOscillatorCountChange) {
+                        this.onOscillatorCountChange(count);
+                    }
+                }
+
+                setUnisonCount(count) {
+                    // Ensure odd number for symmetric spread
+                    this.unisonCount = Math.max(1, Math.min(7, count));
+                }
+
+                setUnisonDetune(cents) {
+                    this.unisonDetune = Math.max(0, Math.min(50, cents));
+                    // Update existing voices
+                    for (const voice of this.voices.values()) {
+                        const count = voice.unisonVoices.length;
+                        voice.unisonVoices.forEach((uv, i) => {
+                            const detuneNorm =
+                                count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+                            const detuneCents = detuneNorm * this.unisonDetune;
+                            uv.oscA.detune.value = detuneCents;
+                            uv.oscB.detune.value = detuneCents;
+                        });
+                    }
+                }
+
+                setUnisonSpread(spread) {
+                    this.unisonSpread = Math.max(0, Math.min(1, spread));
+                    // Update existing voices
+                    for (const voice of this.voices.values()) {
+                        const count = voice.unisonVoices.length;
+                        voice.unisonVoices.forEach((uv, i) => {
+                            const detuneNorm =
+                                count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+                            const panPosition = detuneNorm * this.unisonSpread;
+                            uv.panner.pan.value = panPosition;
+                        });
+                    }
                 }
 
                 triggerAttack(gainNode) {
@@ -4285,6 +4453,44 @@
                             });
                         },
                     );
+
+                    // Unison controls
+                    const unisonCount = document.getElementById("unison-count");
+                    const unisonCountValue =
+                        document.getElementById("unison-count-value");
+                    unisonCount.addEventListener("input", (e) => {
+                        const value = parseInt(e.target.value);
+                        this.audio.setUnisonCount(value);
+                        unisonCountValue.textContent = value;
+                    });
+
+                    const unisonDetune =
+                        document.getElementById("unison-detune");
+                    const unisonDetuneValue = document.getElementById(
+                        "unison-detune-value",
+                    );
+                    unisonDetune.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setUnisonDetune(value);
+                        unisonDetuneValue.textContent = `${Math.round(value)}¢`;
+                    });
+
+                    const unisonSpread =
+                        document.getElementById("unison-spread");
+                    const unisonSpreadValue = document.getElementById(
+                        "unison-spread-value",
+                    );
+                    unisonSpread.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setUnisonSpread(value);
+                        unisonSpreadValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    // Oscillator count display
+                    this.audio.onOscillatorCountChange = (count) => {
+                        document.getElementById("osc-count").textContent =
+                            `Osc: ${count}`;
+                    };
 
                     // Theme toggle
                     document
