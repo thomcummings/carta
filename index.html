@@ -4081,14 +4081,18 @@
                     morphModRange.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         this.morphMod.setRange(value);
+                        e.target.dataset.tooltip = `Range: ${Math.round(value * 100)}%`;
                     });
+                    morphModRange.dataset.tooltip = `Range: ${Math.round(morphModRange.value * 100)}%`;
 
                     const morphModOffset =
                         document.getElementById("morph-mod-offset");
                     morphModOffset.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         this.morphMod.setOffset(value);
+                        e.target.dataset.tooltip = `Offset: ${Math.round(value * 100)}%`;
                     });
+                    morphModOffset.dataset.tooltip = `Offset: ${Math.round(morphModOffset.value * 100)}%`;
 
                     // LFO rate controls (exponential: 0.05Hz - 10Hz)
                     const lfoSliderToHz = (value) => {
@@ -4133,7 +4137,9 @@
                     filterModRange.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         this.filterMod.setRange(value);
+                        e.target.dataset.tooltip = `Range: ${Math.round(value * 100)}%`;
                     });
+                    filterModRange.dataset.tooltip = `Range: ${Math.round(filterModRange.value * 100)}%`;
 
                     // Filter modulation offset
                     const filterModOffset =
@@ -4141,7 +4147,9 @@
                     filterModOffset.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
                         this.filterMod.setOffset(value);
+                        e.target.dataset.tooltip = `Offset: ${Math.round(value * 100)}%`;
                     });
+                    filterModOffset.dataset.tooltip = `Offset: ${Math.round(filterModOffset.value * 100)}%`;
 
                     // Filter controls
                     const filterCutoff =
