@@ -3931,11 +3931,10 @@
                     this.filterMod = new ModDestination(
                         this.modManager,
                         (value) => {
-                            // value is 0-1, map to filter frequency (20Hz - 20kHz logarithmic)
+                            // value is 0-1, map linearly to filter frequency (20Hz - 20kHz)
                             const minFreq = 20;
                             const maxFreq = 20000;
-                            const freq =
-                                minFreq * Math.pow(maxFreq / minFreq, value);
+                            const freq = minFreq + value * (maxFreq - minFreq);
                             this.audio.setFilterCutoff(freq);
                             // Update slider position
                             document.getElementById("filter-cutoff").value =
