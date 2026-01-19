@@ -1435,6 +1435,21 @@
                             >0%</span
                         >
                     </div>
+                    <div class="column-param">
+                        <label>Width</label>
+                        <input
+                            type="range"
+                            id="reverb-width"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.2"
+                            data-tooltip="Stereo width (cross-feed)"
+                        />
+                        <span class="param-value" id="reverb-width-value"
+                            >20%</span
+                        >
+                    </div>
                 </div>
             </div>
 
@@ -1947,6 +1962,7 @@
                     this.size = 1.0;
                     this.modDepth = 0.002;
                     this.modRate = 0.5;
+                    this.width = 0.2;
 
                     // Freeverb-style comb filter delay times (in seconds at 44.1kHz, scaled)
                     this.combTunings = [
@@ -2032,14 +2048,14 @@
                     allpassChainR.output.connect(this.stereoMerger, 0, 1);
 
                     // Cross-feed for wider stereo
-                    const crossL = ctx.createGain();
-                    const crossR = ctx.createGain();
-                    crossL.gain.value = 0.2;
-                    crossR.gain.value = 0.2;
-                    allpassChainL.output.connect(crossR);
-                    allpassChainR.output.connect(crossL);
-                    crossL.connect(this.stereoMerger, 0, 0);
-                    crossR.connect(this.stereoMerger, 0, 1);
+                    this.crossFeedL = ctx.createGain();
+                    this.crossFeedR = ctx.createGain();
+                    this.crossFeedL.gain.value = this.width;
+                    this.crossFeedR.gain.value = this.width;
+                    allpassChainL.output.connect(this.crossFeedR);
+                    allpassChainR.output.connect(this.crossFeedL);
+                    this.crossFeedL.connect(this.stereoMerger, 0, 0);
+                    this.crossFeedR.connect(this.stereoMerger, 0, 1);
 
                     this.stereoMerger.connect(this.output);
                 }
@@ -2185,6 +2201,14 @@
                         this.audioCtx.currentTime,
                     );
                 }
+
+                setWidth(value) {
+                    // value 0-1: 0 = narrow (no cross-feed), 1 = wide (full cross-feed)
+                    this.width = value;
+                    const time = this.audioCtx.currentTime;
+                    this.crossFeedL.gain.setValueAtTime(value, time);
+                    this.crossFeedR.gain.setValueAtTime(value, time);
+                }
             }
 
             // ============================================================
@@ -2323,6 +2347,12 @@
                         const depth = amount * 0.01;
                         const rate = 0.3 + amount * 1.7;
                         this.reverb.setModulation(depth, rate);
+                    }
+                }
+
+                setReverbWidth(width) {
+                    if (this.reverb) {
+                        this.reverb.setWidth(width);
                     }
                 }
 
@@ -4247,6 +4277,17 @@
                         const value = parseFloat(e.target.value);
                         this.audio.setReverbShimmer(value);
                         reverbShimmerValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    const reverbWidth =
+                        document.getElementById("reverb-width");
+                    const reverbWidthValue = document.getElementById(
+                        "reverb-width-value",
+                    );
+                    reverbWidth.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbWidth(value);
+                        reverbWidthValue.textContent = `${Math.round(value * 100)}%`;
                     });
 
                     // Generative controls
