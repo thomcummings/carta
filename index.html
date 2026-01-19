@@ -1204,6 +1204,37 @@
                         />
                         <span class="param-value" id="release-value">0.30</span>
                     </div>
+                    <div class="column-subheader">Stacking</div>
+                    <div class="column-param">
+                        <label>Frames</label>
+                        <input
+                            type="range"
+                            id="stack-frames"
+                            min="1"
+                            max="7"
+                            step="2"
+                            value="1"
+                            data-tooltip="Number of terrain frames (1-7)"
+                        />
+                        <span class="param-value" id="stack-frames-value"
+                            >1</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Spread</label>
+                        <input
+                            type="range"
+                            id="stack-spread"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value="10"
+                            data-tooltip="Frame spacing (% of wavetable)"
+                        />
+                        <span class="param-value" id="stack-spread-value"
+                            >10%</span
+                        >
+                    </div>
                 </div>
 
                 <!-- Sequencer Column -->
@@ -2192,6 +2223,9 @@
                     this.reverbMix = 0;
                     this.reverbDecay = 0.5;
                     this.initialized = false;
+                    // Terrain stacking settings
+                    this.stackFrames = 1; // 1, 3, 5, or 7
+                    this.stackSpread = 10; // percentage of wavetable
                 }
 
                 async initialize() {
@@ -2370,60 +2404,104 @@
 
                     this.triggerAttack(voice.envGain);
 
-                    voice.oscA.start();
-                    voice.oscB.start();
+                    // Start all stacked oscillators
+                    for (const layer of voice.layers) {
+                        layer.oscA.start();
+                        layer.oscB.start();
+                    }
                 }
 
                 createVoice(frequency, velocity) {
-                    const oscA = this.audioCtx.createOscillator();
-                    const oscB = this.audioCtx.createOscillator();
-                    const gainA = this.audioCtx.createGain();
-                    const gainB = this.audioCtx.createGain();
                     const envGain = this.audioCtx.createGain();
                     const velGain = this.audioCtx.createGain();
 
-                    oscA.connect(gainA);
-                    oscB.connect(gainB);
-                    gainA.connect(envGain);
-                    gainB.connect(envGain);
+                    // Create stacked layers (each layer = one terrain frame position)
+                    const layers = [];
+                    const count = this.stackFrames;
+                    const halfCount = Math.floor(count / 2); // e.g., count=5 -> halfCount=2
+
+                    for (let i = 0; i < count; i++) {
+                        const oscA = this.audioCtx.createOscillator();
+                        const oscB = this.audioCtx.createOscillator();
+                        const gainA = this.audioCtx.createGain();
+                        const gainB = this.audioCtx.createGain();
+
+                        oscA.connect(gainA);
+                        oscB.connect(gainB);
+                        gainA.connect(envGain);
+                        gainB.connect(envGain);
+
+                        oscA.frequency.value = frequency;
+                        oscB.frequency.value = frequency;
+
+                        // Calculate frame offset for this layer
+                        // i=0 is leftmost, i=halfCount is center, i=count-1 is rightmost
+                        const offsetIndex = i - halfCount; // e.g., for count=5: -2, -1, 0, 1, 2
+
+                        layers.push({ oscA, oscB, gainA, gainB, offsetIndex });
+                    }
+
+                    // Scale gain by number of layers to maintain consistent volume
+                    const layerGain = 1 / Math.sqrt(count);
                     envGain.connect(velGain);
-                    // Connect to filter (which then goes to reverb/master)
                     velGain.connect(this.filter);
+                    velGain.gain.value = velocity * layerGain;
 
-                    oscA.frequency.value = frequency;
-                    oscB.frequency.value = frequency;
-
-                    velGain.gain.value = velocity;
-
-                    this.applyMorph({ oscA, oscB, gainA, gainB });
+                    // Apply morph to all layers
+                    this.applyMorph({ layers });
 
                     envGain.gain.value = 0;
 
-                    return { oscA, oscB, gainA, gainB, envGain, velGain };
+                    return { layers, envGain, velGain };
                 }
 
                 applyMorph(voice) {
                     if (this.periodicWaves.length <= 1) {
-                        voice.oscA.setPeriodicWave(this.periodicWaves[0]);
-                        voice.oscB.setPeriodicWave(this.periodicWaves[0]);
-                        voice.gainA.gain.value = 1;
-                        voice.gainB.gain.value = 0;
+                        for (const layer of voice.layers) {
+                            layer.oscA.setPeriodicWave(this.periodicWaves[0]);
+                            layer.oscB.setPeriodicWave(this.periodicWaves[0]);
+                            layer.gainA.gain.value = 1;
+                            layer.gainB.gain.value = 0;
+                        }
                         return;
                     }
 
-                    const frameIndex =
-                        this.morphPosition * (this.periodicWaves.length - 1);
-                    const lowerFrame = Math.floor(frameIndex);
-                    const upperFrame = Math.min(
-                        lowerFrame + 1,
-                        this.periodicWaves.length - 1,
-                    );
-                    const blend = frameIndex - lowerFrame;
+                    const totalFrames = this.periodicWaves.length;
+                    // Convert spread percentage to frame offset
+                    // spreadFrames is the distance in frames between adjacent stacked layers
+                    const spreadFrames =
+                        (this.stackSpread / 100) * (totalFrames - 1);
 
-                    voice.oscA.setPeriodicWave(this.periodicWaves[lowerFrame]);
-                    voice.oscB.setPeriodicWave(this.periodicWaves[upperFrame]);
-                    voice.gainA.gain.value = 1 - blend;
-                    voice.gainB.gain.value = blend;
+                    for (const layer of voice.layers) {
+                        // Calculate this layer's center frame position
+                        // Base position from morph, plus offset based on layer index and spread
+                        const baseFrameIndex =
+                            this.morphPosition * (totalFrames - 1);
+                        const layerFrameIndex =
+                            baseFrameIndex + layer.offsetIndex * spreadFrames;
+
+                        // Clamp to valid range
+                        const clampedIndex = Math.max(
+                            0,
+                            Math.min(totalFrames - 1, layerFrameIndex),
+                        );
+
+                        const lowerFrame = Math.floor(clampedIndex);
+                        const upperFrame = Math.min(
+                            lowerFrame + 1,
+                            totalFrames - 1,
+                        );
+                        const blend = clampedIndex - lowerFrame;
+
+                        layer.oscA.setPeriodicWave(
+                            this.periodicWaves[lowerFrame],
+                        );
+                        layer.oscB.setPeriodicWave(
+                            this.periodicWaves[upperFrame],
+                        );
+                        layer.gainA.gain.value = 1 - blend;
+                        layer.gainB.gain.value = blend;
+                    }
                 }
 
                 noteOff(noteId) {
@@ -2434,10 +2512,27 @@
 
                     const stopTime =
                         this.audioCtx.currentTime + this.adsr.release + 0.1;
-                    voice.oscA.stop(stopTime);
-                    voice.oscB.stop(stopTime);
+
+                    // Stop all stacked oscillators
+                    for (const layer of voice.layers) {
+                        layer.oscA.stop(stopTime);
+                        layer.oscB.stop(stopTime);
+                    }
 
                     this.voices.delete(noteId);
+                }
+
+                setStackFrames(count) {
+                    // Ensure odd number (1, 3, 5, 7)
+                    this.stackFrames = Math.max(1, Math.min(7, count));
+                }
+
+                setStackSpread(percent) {
+                    this.stackSpread = Math.max(0, Math.min(100, percent));
+                    // Update existing voices
+                    for (const voice of this.voices.values()) {
+                        this.applyMorph(voice);
+                    }
                 }
 
                 triggerAttack(gainNode) {
@@ -4341,6 +4436,25 @@
                             });
                         },
                     );
+
+                    // Stacking controls
+                    const stackFrames = document.getElementById("stack-frames");
+                    const stackFramesValue =
+                        document.getElementById("stack-frames-value");
+                    stackFrames.addEventListener("input", (e) => {
+                        const value = parseInt(e.target.value);
+                        this.audio.setStackFrames(value);
+                        stackFramesValue.textContent = value;
+                    });
+
+                    const stackSpread = document.getElementById("stack-spread");
+                    const stackSpreadValue =
+                        document.getElementById("stack-spread-value");
+                    stackSpread.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setStackSpread(value);
+                        stackSpreadValue.textContent = `${Math.round(value)}%`;
+                    });
 
                     // Theme toggle
                     document
