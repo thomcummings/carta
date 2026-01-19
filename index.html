@@ -4815,7 +4815,7 @@
                         "gen-probability-value",
                         (v) => `${Math.round(v)}%`,
                     );
-                    this.sequencer.setTempo(preset.sequencer.tempo);
+                    this.sequencer.setBPM(preset.sequencer.tempo);
                     this.sequencer.setProbability(
                         preset.sequencer.probability / 100,
                     );
