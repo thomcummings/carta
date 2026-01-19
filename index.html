@@ -4144,9 +4144,8 @@
                     );
                     filterCutoff.addEventListener("input", (e) => {
                         const value = parseFloat(e.target.value);
-                        // Convert linear slider to 0-1 for modulation base
-                        const normalized =
-                            Math.log(value / 20) / Math.log(20000 / 20);
+                        // Convert slider value to 0-1 for modulation base (linear)
+                        const normalized = (value - 20) / (20000 - 20);
                         this.filterMod.setBaseValue(normalized);
                         // If in manual mode, update directly
                         if (this.filterMod.getMode() === "manual") {
