@@ -1486,18 +1486,18 @@
                         >
                     </div>
                     <div class="column-param">
-                        <label>Trigger</label>
+                        <label>Density</label>
                         <input
                             type="range"
-                            id="gravity-trigger"
-                            min="0.1"
-                            max="1.5"
-                            step="0.01"
-                            value="0.3"
-                            data-tooltip="Direction change threshold for note trigger"
+                            id="gravity-density"
+                            min="2"
+                            max="20"
+                            step="1"
+                            value="8"
+                            data-tooltip="Distance between notes (lower = more notes)"
                         />
-                        <span class="param-value" id="gravity-trigger-value"
-                            >17°</span
+                        <span class="param-value" id="gravity-density-value"
+                            >8</span
                         >
                     </div>
                     <div class="column-param">
@@ -3899,7 +3899,7 @@
                     this.gravity = 0.7;           // 0.1-1 (higher = faster descent)
                     this.friction = 0.98;         // 0.9-0.995 (higher = less friction)
                     this.bounce = 0.5;            // 0-0.9 (energy retained on bounce)
-                    this.triggerThreshold = 0.3;  // radians (~17 degrees)
+                    this.triggerDistance = 8;     // Grid units between note triggers
 
                     // Auto-drop mode
                     this.autoDrop = false;
@@ -3921,6 +3921,7 @@
                     // Note tracking
                     this.activeNoteId = null;
                     this.noteTimeout = null;
+                    this.distanceTraveled = 0;    // Distance since last note
 
                     // Settle detection - require sustained slow speed
                     this.slowFrames = 0;
@@ -3950,8 +3951,8 @@
                     this.bounce = value;
                 }
 
-                setTriggerThreshold(radians) {
-                    this.triggerThreshold = radians;
+                setTriggerDistance(distance) {
+                    this.triggerDistance = distance;
                 }
 
                 setAutoDrop(enabled) {
@@ -3964,8 +3965,9 @@
                     this.vel = { x: 0, y: 0 };
                     this.lastVel = { x: 0, y: 0 };
                     this.running = true;
-                    this.frameCount = 0;  // Grace period before settle detection
-                    this.slowFrames = 0;  // Reset slow frame counter
+                    this.frameCount = 0;       // Grace period before settle detection
+                    this.slowFrames = 0;       // Reset slow frame counter
+                    this.distanceTraveled = 0; // Reset distance counter
 
                     console.log(`GravityFlow: Dropping ball at (${x.toFixed(1)}, ${y.toFixed(1)})`);
 
@@ -4070,23 +4072,28 @@
                         this.vel.y = (this.vel.y / speed) * maxSpeed;
                     }
 
-                    // Log occasionally for debugging
-                    if (this.frameCount % 60 === 1) {
-                        console.log(`GravityFlow: pos=(${this.pos.x.toFixed(1)}, ${this.pos.y.toFixed(1)}), speed=${speed.toFixed(2)}, gradient=(${gradient.x.toFixed(3)}, ${gradient.y.toFixed(3)})`);
-                    }
-
-                    // Detect direction change before updating position
-                    // Lower speed threshold to catch more direction changes
-                    if (speed > 0.5) {
-                        const angleChange = this.getAngleChange();
-                        if (angleChange > this.triggerThreshold) {
-                            this.triggerNote(angleChange);
-                        }
-                    }
+                    // Calculate movement this frame
+                    const dx = this.vel.x * dt;
+                    const dy = this.vel.y * dt;
+                    const frameDistance = Math.hypot(dx, dy);
 
                     // Update position
-                    this.pos.x += this.vel.x * dt;
-                    this.pos.y += this.vel.y * dt;
+                    this.pos.x += dx;
+                    this.pos.y += dy;
+
+                    // Track distance traveled and trigger notes
+                    this.distanceTraveled += frameDistance;
+                    if (this.distanceTraveled >= this.triggerDistance) {
+                        this.distanceTraveled = 0;  // Reset counter
+                        // Map speed to velocity (louder when faster)
+                        const velocity = Math.min(1, 0.4 + (speed / 30) * 0.6);
+                        this.triggerNote(velocity);
+                    }
+
+                    // Log occasionally for debugging
+                    if (this.frameCount % 60 === 1) {
+                        console.log(`GravityFlow: pos=(${this.pos.x.toFixed(1)}, ${this.pos.y.toFixed(1)}), speed=${speed.toFixed(2)}, dist=${this.distanceTraveled.toFixed(1)}/${this.triggerDistance}`);
+                    }
 
                     // Handle edges (bounce or clamp)
                     this.handleEdges();
@@ -4185,29 +4192,27 @@
                         bounced = true;
                     }
 
-                    // Trigger note on edge bounce
+                    // Trigger note on edge bounce (with high velocity for emphasis)
                     if (bounced) {
                         const speed = Math.hypot(this.vel.x, this.vel.y);
                         if (speed > 0.3) {
-                            this.triggerNote(Math.PI / 2);  // Treat bounce as 90° turn
+                            this.triggerNote(0.9);  // Bounces are loud
+                            this.distanceTraveled = 0;  // Reset distance counter
                         }
                     }
                 }
 
-                triggerNote(intensity) {
+                triggerNote(velocity) {
                     if (!this.scaleManager) {
                         console.warn('GravityFlow: No scale manager');
                         return;
                     }
 
-                    // Get pitch from elevation
+                    // Get pitch from elevation at current position
                     const elevation = this.sampleElevation(this.pos.x, this.pos.y);
                     const frequency = this.elevationToPitch(elevation);
 
-                    console.log(`GravityFlow note: freq=${Math.round(frequency)}Hz, elev=${elevation.toFixed(2)}, intensity=${(intensity * 180 / Math.PI).toFixed(0)}°`);
-
-                    // Velocity based on direction change intensity
-                    const velocity = Math.min(1, 0.4 + (intensity / Math.PI) * 0.6);
+                    console.log(`GravityFlow note: freq=${Math.round(frequency)}Hz, elev=${elevation.toFixed(2)}, vel=${velocity.toFixed(2)}`);
 
                     // Release previous note if still playing
                     if (this.activeNoteId) {
@@ -5076,14 +5081,13 @@
                     });
 
                     // Trigger threshold
-                    const gravityTrigger = document.getElementById("gravity-trigger");
-                    const gravityTriggerValue = document.getElementById("gravity-trigger-value");
-                    gravityTrigger.addEventListener("input", (e) => {
-                        const value = parseFloat(e.target.value);
-                        // Convert radians to degrees for display
-                        const degrees = Math.round(value * (180 / Math.PI));
-                        gravityTriggerValue.textContent = `${degrees}°`;
-                        this.gravityFlow.setTriggerThreshold(value);
+                    // Note density (distance between notes)
+                    const gravityDensity = document.getElementById("gravity-density");
+                    const gravityDensityValue = document.getElementById("gravity-density-value");
+                    gravityDensity.addEventListener("input", (e) => {
+                        const value = parseInt(e.target.value);
+                        gravityDensityValue.textContent = value;
+                        this.gravityFlow.setTriggerDistance(value);
                     });
 
                     // Auto-drop checkbox
