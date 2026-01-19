@@ -17,6 +17,13 @@ Stabilizing core synth functionality and exploring sound design features.
 - [ ] User presets — Save/load presets to localStorage
 - [ ] Wavetable export — Export terrain as .wav or Serum-compatible format
 
+## Terrain-Driven Features (New)
+Features that lean into the unique terrain-as-instrument concept:
+
+- [ ] **Gravity Flow Sequencer** — Drop a ball on terrain, it rolls downhill, direction changes trigger notes. Physics-based generative sequencing where terrain topology creates the rhythm.
+- [ ] **Weather Layer Modulation** — Fetch real-time weather for selected location. Wind → LFO rate, temperature → filter, humidity → reverb. The sound of a place *right now*.
+- [ ] **Terrain Navigator** — Custom morph paths: rotate sampling angle, draw freehand paths, use spiral/zigzag patterns. Same terrain, infinite variations based on traversal.
+
 ## Later
 - [ ] Journey mode — Draw path on map, terrain crossfades along route over time
 - [ ] Add stereo width control to reverb section
