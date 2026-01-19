@@ -3136,30 +3136,12 @@
                     this.onNoteOn = onNoteOn;
                     this.onNoteOff = onNoteOff;
                     this.activeKeys = new Set();
-                    this.keyElements = document.querySelectorAll(".key");
                     this.keyMap = new Map();
-
-                    this.keyElements.forEach((el) => {
-                        const key = el.dataset.key;
-                        const freq = parseFloat(el.dataset.freq);
-                        this.keyMap.set(key, { element: el, frequency: freq });
-                    });
                 }
 
                 enable() {
                     document.addEventListener("keydown", this.handleKeyDown);
                     document.addEventListener("keyup", this.handleKeyUp);
-
-                    this.keyElements.forEach((el) => {
-                        el.addEventListener("mousedown", this.handleMouseDown);
-                        el.addEventListener("mouseup", this.handleMouseUp);
-                        el.addEventListener("mouseleave", this.handleMouseUp);
-                        el.addEventListener(
-                            "touchstart",
-                            this.handleTouchStart,
-                        );
-                        el.addEventListener("touchend", this.handleTouchEnd);
-                    });
                 }
 
                 handleKeyDown = (e) => {
@@ -3168,8 +3150,7 @@
                     const key = e.key.toLowerCase();
                     if (this.keyMap.has(key) && !this.activeKeys.has(key)) {
                         this.activeKeys.add(key);
-                        const { element, frequency } = this.keyMap.get(key);
-                        element.classList.add("active");
+                        const { frequency } = this.keyMap.get(key);
                         this.onNoteOn(`kb_${key}`, frequency, 0.8);
                     }
                 };
@@ -3178,33 +3159,8 @@
                     const key = e.key.toLowerCase();
                     if (this.keyMap.has(key)) {
                         this.activeKeys.delete(key);
-                        const { element } = this.keyMap.get(key);
-                        element.classList.remove("active");
                         this.onNoteOff(`kb_${key}`);
                     }
-                };
-
-                handleMouseDown = (e) => {
-                    const key = e.currentTarget.dataset.key;
-                    const freq = parseFloat(e.currentTarget.dataset.freq);
-                    e.currentTarget.classList.add("active");
-                    this.onNoteOn(`mouse_${key}`, freq, 0.8);
-                };
-
-                handleMouseUp = (e) => {
-                    const key = e.currentTarget.dataset.key;
-                    e.currentTarget.classList.remove("active");
-                    this.onNoteOff(`mouse_${key}`);
-                };
-
-                handleTouchStart = (e) => {
-                    e.preventDefault();
-                    this.handleMouseDown(e);
-                };
-
-                handleTouchEnd = (e) => {
-                    e.preventDefault();
-                    this.handleMouseUp(e);
                 };
             }
 
@@ -4423,34 +4379,19 @@
                         ";",
                         "'",
                     ];
-                    const keyElements = document.querySelectorAll(".key");
-
-                    keyElements.forEach((el, i) => {
-                        if (i < notes.length) {
-                            const note = notes[i];
-                            el.dataset.freq = note.frequency;
-                            el.dataset.note = note.note;
-                            el.querySelector(".key-note").textContent =
-                                note.note;
-                            el.style.display = "";
-                        } else {
-                            // Hide keys that don't have notes in this scale
-                            el.style.display = "none";
-                        }
-                    });
 
                     // Update keyboard input mapping
                     if (this.keyboard) {
                         this.keyboard.keyMap.clear();
-                        keyElements.forEach((el, i) => {
-                            if (i < notes.length) {
-                                const key = keys[i];
-                                this.keyboard.keyMap.set(key, {
-                                    element: el,
-                                    frequency: notes[i].frequency,
-                                });
-                            }
-                        });
+                        for (
+                            let i = 0;
+                            i < Math.min(keys.length, notes.length);
+                            i++
+                        ) {
+                            this.keyboard.keyMap.set(keys[i], {
+                                frequency: notes[i].frequency,
+                            });
+                        }
                     }
                 }
 
@@ -4638,7 +4579,11 @@
                     }
                 }
 
-                noteOn(noteId, frequency, velocity) {
+                async noteOn(noteId, frequency, velocity) {
+                    // Initialize audio on first interaction (browser requires user gesture)
+                    if (!this.audio.initialized) {
+                        await this.audio.initialize();
+                    }
                     // Update modulation system with velocity
                     this.modManager.setMidiVelocity(velocity);
                     this.audio.noteOn(noteId, frequency, velocity);
