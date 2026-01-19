@@ -475,7 +475,7 @@
                ============================================================ */
             #three-columns {
                 display: grid;
-                grid-template-columns: 1fr 1.5fr 1fr;
+                grid-template-columns: 1fr 1.3fr 1fr 1fr;
                 gap: 1px;
                 background: var(--border);
                 border: 1px solid var(--border);
@@ -521,6 +521,14 @@
             .column-param input[type="range"] {
                 flex: 1;
                 min-width: 50px;
+            }
+
+            .column-param input[type="checkbox"] {
+                width: 14px;
+                height: 14px;
+                margin: 0 8px 0 0;
+                cursor: pointer;
+                accent-color: var(--accent);
             }
 
             .column-param .param-value {
@@ -1413,6 +1421,94 @@
                         />
                         <span class="param-value" id="reverb-shimmer-value"
                             >0%</span
+                        >
+                    </div>
+                </div>
+
+                <!-- Gravity Flow Column -->
+                <div class="column" id="gravity-column">
+                    <div class="column-header">
+                        <span>Gravity</span>
+                        <button
+                            id="gravity-drop-btn"
+                            class="play-btn"
+                            data-tooltip="Drop Ball"
+                        >
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="8" r="4" />
+                                <path d="M12 14 L12 20 M8 18 L12 22 L16 18" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="column-param">
+                        <label>Gravity</label>
+                        <input
+                            type="range"
+                            id="gravity-strength"
+                            min="0.1"
+                            max="1"
+                            step="0.01"
+                            value="0.5"
+                            data-tooltip="Descent speed"
+                        />
+                        <span class="param-value" id="gravity-strength-value"
+                            >50%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Friction</label>
+                        <input
+                            type="range"
+                            id="gravity-friction"
+                            min="0.9"
+                            max="0.995"
+                            step="0.001"
+                            value="0.97"
+                            data-tooltip="How quickly ball settles"
+                        />
+                        <span class="param-value" id="gravity-friction-value"
+                            >70%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Bounce</label>
+                        <input
+                            type="range"
+                            id="gravity-bounce"
+                            min="0"
+                            max="0.9"
+                            step="0.01"
+                            value="0.4"
+                            data-tooltip="Energy retained on direction change"
+                        />
+                        <span class="param-value" id="gravity-bounce-value"
+                            >40%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Trigger</label>
+                        <input
+                            type="range"
+                            id="gravity-trigger"
+                            min="0.1"
+                            max="1.5"
+                            step="0.01"
+                            value="0.5"
+                            data-tooltip="Direction change threshold for note trigger"
+                        />
+                        <span class="param-value" id="gravity-trigger-value"
+                            >29°</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label style="flex: 0 0 auto;">Auto</label>
+                        <input
+                            type="checkbox"
+                            id="gravity-auto"
+                            data-tooltip="Auto-drop when ball settles"
+                        />
+                        <span class="param-value" id="gravity-status"
+                            >Click terrain</span
                         >
                     </div>
                 </div>
@@ -2867,6 +2963,138 @@
                     this.controls.reset();
                 }
 
+                // --------------------------------------------------------
+                // Gravity Flow Ball Visualization
+                // --------------------------------------------------------
+
+                initBall() {
+                    if (this.ball) return; // Already initialized
+
+                    // Create ball mesh
+                    const geometry = new THREE.SphereGeometry(0.025, 16, 16);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: 0xff6600,
+                        transparent: true,
+                        opacity: 0.9,
+                    });
+                    this.ball = new THREE.Mesh(geometry, material);
+                    this.ball.visible = false;
+                    this.scene.add(this.ball);
+
+                    // Create trail
+                    this.trailPoints = [];
+                    this.trailMaxLength = 80;
+                    const trailGeometry = new THREE.BufferGeometry();
+                    const trailPositions = new Float32Array(this.trailMaxLength * 3);
+                    trailGeometry.setAttribute(
+                        'position',
+                        new THREE.BufferAttribute(trailPositions, 3)
+                    );
+                    trailGeometry.setDrawRange(0, 0);
+
+                    const trailMaterial = new THREE.LineBasicMaterial({
+                        color: 0xff6600,
+                        transparent: true,
+                        opacity: 0.4,
+                    });
+                    this.trail = new THREE.Line(trailGeometry, trailMaterial);
+                    this.trail.scale.setScalar(1.3);
+                    this.scene.add(this.trail);
+                }
+
+                updateBallPosition(gridX, gridY) {
+                    if (!this.ball) this.initBall();
+                    if (this.frames.length === 0) return;
+
+                    // Convert grid coords (0-255, 0-31) to 3D space (-0.5 to 0.5)
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+
+                    const x = (gridX / (samplesPerFrame - 1)) - 0.5;
+                    const z = (gridY / (numFrames - 1)) - 0.5;
+
+                    // Sample height at this position (bilinear interpolation)
+                    const frameIdx = gridY;
+                    const sampleIdx = gridX;
+                    const y = this.sampleTerrainHeight(sampleIdx, frameIdx) * 0.3 + 0.03;
+
+                    // Update ball position (account for terrain scale)
+                    this.ball.position.set(x * 1.3, y * 1.3, z * 1.3);
+                    this.ball.visible = true;
+
+                    // Add to trail
+                    this.trailPoints.push({ x: x * 1.3, y: y * 1.3, z: z * 1.3 });
+                    if (this.trailPoints.length > this.trailMaxLength) {
+                        this.trailPoints.shift();
+                    }
+
+                    // Update trail geometry
+                    const positions = this.trail.geometry.attributes.position.array;
+                    for (let i = 0; i < this.trailPoints.length; i++) {
+                        const p = this.trailPoints[i];
+                        positions[i * 3] = p.x;
+                        positions[i * 3 + 1] = p.y;
+                        positions[i * 3 + 2] = p.z;
+                    }
+                    this.trail.geometry.attributes.position.needsUpdate = true;
+                    this.trail.geometry.setDrawRange(0, this.trailPoints.length);
+                }
+
+                sampleTerrainHeight(sampleIdx, frameIdx) {
+                    if (this.frames.length === 0) return 0;
+
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+
+                    // Clamp indices
+                    const x = Math.max(0, Math.min(samplesPerFrame - 1, sampleIdx));
+                    const y = Math.max(0, Math.min(numFrames - 1, frameIdx));
+
+                    // Bilinear interpolation
+                    const x0 = Math.floor(x);
+                    const x1 = Math.min(x0 + 1, samplesPerFrame - 1);
+                    const y0 = Math.floor(y);
+                    const y1 = Math.min(y0 + 1, numFrames - 1);
+                    const fx = x - x0;
+                    const fy = y - y0;
+
+                    const v00 = this.frames[y0][x0];
+                    const v10 = this.frames[y0][x1];
+                    const v01 = this.frames[y1][x0];
+                    const v11 = this.frames[y1][x1];
+
+                    return v00 * (1-fx) * (1-fy) +
+                           v10 * fx * (1-fy) +
+                           v01 * (1-fx) * fy +
+                           v11 * fx * fy;
+                }
+
+                flashBallTrigger() {
+                    if (!this.ball) return;
+
+                    // Flash effect: scale up and turn white briefly
+                    this.ball.scale.setScalar(1.8);
+                    this.ball.material.color.setHex(0xffffff);
+
+                    setTimeout(() => {
+                        if (this.ball) {
+                            this.ball.scale.setScalar(1);
+                            this.ball.material.color.setHex(0xff6600);
+                        }
+                    }, 100);
+                }
+
+                hideBall() {
+                    if (this.ball) {
+                        this.ball.visible = false;
+                    }
+                    // Clear trail
+                    this.trailPoints = [];
+                    if (this.trail) {
+                        this.trail.geometry.setDrawRange(0, 0);
+                    }
+                }
+
                 animate = () => {
                     requestAnimationFrame(this.animate);
                     this.controls.update();
@@ -3646,6 +3874,350 @@
             }
 
             // ============================================================
+            // GRAVITY FLOW SEQUENCER
+            // ============================================================
+            // Physics-based terrain sequencer: drop a ball, it rolls downhill,
+            // terrain features trigger notes based on direction changes.
+
+            class GravityFlowSequencer {
+                constructor(onNoteOn, onNoteOff) {
+                    this.onNoteOn = onNoteOn;
+                    this.onNoteOff = onNoteOff;
+
+                    // Terrain data (normalized -1 to 1)
+                    this.frames = null;  // [frameIndex][sampleIndex]
+                    this.gridWidth = 256;
+                    this.gridHeight = 32;
+
+                    // Ball state
+                    this.pos = { x: 128, y: 16 };
+                    this.vel = { x: 0, y: 0 };
+                    this.lastVel = { x: 0, y: 0 };
+                    this.running = false;
+
+                    // Tunable parameters
+                    this.gravity = 0.5;           // 0.1-1
+                    this.friction = 0.97;         // 0.9-0.995
+                    this.bounce = 0.4;            // 0-0.9
+                    this.triggerThreshold = 0.5;  // radians
+
+                    // Auto-drop mode
+                    this.autoDrop = false;
+
+                    // Scale manager for pitch quantization
+                    this.scaleManager = null;
+                    this.octaveLow = 3;
+                    this.octaveHigh = 5;
+
+                    // Animation loop
+                    this.animationId = null;
+                    this.lastTime = 0;
+
+                    // Callbacks for visualization
+                    this.onPositionUpdate = null;
+                    this.onTrigger = null;
+                    this.onSettle = null;
+
+                    // Note tracking
+                    this.activeNoteId = null;
+                    this.noteTimeout = null;
+                }
+
+                setFrames(frames) {
+                    this.frames = frames;
+                    if (frames && frames.length > 0) {
+                        this.gridHeight = frames.length;
+                        this.gridWidth = frames[0].length;
+                    }
+                }
+
+                setScaleManager(scaleManager) {
+                    this.scaleManager = scaleManager;
+                }
+
+                setGravity(value) {
+                    this.gravity = value;
+                }
+
+                setFriction(value) {
+                    this.friction = value;
+                }
+
+                setBounce(value) {
+                    this.bounce = value;
+                }
+
+                setTriggerThreshold(radians) {
+                    this.triggerThreshold = radians;
+                }
+
+                setAutoDrop(enabled) {
+                    this.autoDrop = enabled;
+                }
+
+                drop(x, y) {
+                    // x: 0-255 (grid), y: 0-31 (grid)
+                    this.pos = { x, y };
+                    this.vel = { x: 0, y: 0 };
+                    this.lastVel = { x: 0, y: 0 };
+                    this.running = true;
+
+                    if (!this.animationId) {
+                        this.lastTime = performance.now();
+                        this.animate();
+                    }
+                }
+
+                dropAtRandomPeak() {
+                    if (!this.frames) return;
+
+                    // Find high points in terrain
+                    let maxElev = -Infinity;
+                    let peaks = [];
+
+                    for (let y = 2; y < this.gridHeight - 2; y += 2) {
+                        for (let x = 8; x < this.gridWidth - 8; x += 8) {
+                            const e = this.sampleElevation(x, y);
+                            if (e > 0.3) {  // Only consider elevated areas
+                                peaks.push({ x, y, e });
+                                if (e > maxElev) maxElev = e;
+                            }
+                        }
+                    }
+
+                    // Filter to top peaks
+                    peaks = peaks.filter(p => p.e > maxElev * 0.6);
+
+                    if (peaks.length > 0) {
+                        const peak = peaks[Math.floor(Math.random() * peaks.length)];
+                        this.drop(peak.x, peak.y);
+                    } else {
+                        // Fallback: drop at random elevated position
+                        this.drop(
+                            Math.random() * (this.gridWidth - 20) + 10,
+                            Math.random() * (this.gridHeight - 4) + 2
+                        );
+                    }
+                }
+
+                stop() {
+                    this.running = false;
+                    if (this.animationId) {
+                        cancelAnimationFrame(this.animationId);
+                        this.animationId = null;
+                    }
+                    if (this.activeNoteId) {
+                        this.onNoteOff(this.activeNoteId);
+                        this.activeNoteId = null;
+                    }
+                    if (this.noteTimeout) {
+                        clearTimeout(this.noteTimeout);
+                        this.noteTimeout = null;
+                    }
+                }
+
+                animate() {
+                    const now = performance.now();
+                    const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+                    this.lastTime = now;
+
+                    if (this.running) {
+                        this.update(dt);
+                    }
+
+                    if (this.running || this.animationId) {
+                        this.animationId = requestAnimationFrame(() => this.animate());
+                    }
+                }
+
+                update(dt) {
+                    if (!this.frames) return;
+
+                    // Sample gradient at current position
+                    const gradient = this.sampleGradient(this.pos.x, this.pos.y);
+
+                    // Accelerate downhill (gradient points uphill, so negate)
+                    // Scale factor balances grid aspect ratio (256 x 32)
+                    const gravityForce = this.gravity * 200;
+                    this.vel.x -= gradient.x * gravityForce * dt;
+                    this.vel.y -= gradient.y * gravityForce * dt * 8; // Compensate for aspect ratio
+
+                    // Apply friction (frame-rate independent)
+                    const frictionFactor = Math.pow(this.friction, dt * 60);
+                    this.vel.x *= frictionFactor;
+                    this.vel.y *= frictionFactor;
+
+                    // Detect direction change before updating position
+                    const speed = Math.hypot(this.vel.x, this.vel.y);
+                    if (speed > 0.5) {
+                        const angleChange = this.getAngleChange();
+                        if (angleChange > this.triggerThreshold) {
+                            this.triggerNote(angleChange);
+                        }
+                    }
+
+                    // Update position
+                    this.pos.x += this.vel.x * dt;
+                    this.pos.y += this.vel.y * dt;
+
+                    // Handle edges (bounce or clamp)
+                    this.handleEdges();
+
+                    // Notify visualization
+                    if (this.onPositionUpdate) {
+                        this.onPositionUpdate(this.pos.x, this.pos.y);
+                    }
+
+                    // Check if settled
+                    if (speed < 0.3) {
+                        this.handleSettle();
+                    }
+
+                    // Store for next frame comparison
+                    this.lastVel = { x: this.vel.x, y: this.vel.y };
+                }
+
+                sampleElevation(x, y) {
+                    if (!this.frames) return 0;
+
+                    // Clamp to valid range
+                    const gx = Math.max(0, Math.min(this.gridWidth - 1, x));
+                    const gy = Math.max(0, Math.min(this.gridHeight - 1, y));
+
+                    // Bilinear interpolation
+                    const x0 = Math.floor(gx);
+                    const x1 = Math.min(x0 + 1, this.gridWidth - 1);
+                    const y0 = Math.floor(gy);
+                    const y1 = Math.min(y0 + 1, this.gridHeight - 1);
+                    const fx = gx - x0;
+                    const fy = gy - y0;
+
+                    const v00 = this.frames[y0]?.[x0] || 0;
+                    const v10 = this.frames[y0]?.[x1] || 0;
+                    const v01 = this.frames[y1]?.[x0] || 0;
+                    const v11 = this.frames[y1]?.[x1] || 0;
+
+                    return v00 * (1-fx) * (1-fy) +
+                           v10 * fx * (1-fy) +
+                           v01 * (1-fx) * fy +
+                           v11 * fx * fy;
+                }
+
+                sampleGradient(x, y) {
+                    // Central difference for gradient estimation
+                    const h = 1;
+                    const ex = this.sampleElevation(x + h, y) - this.sampleElevation(x - h, y);
+                    const ey = this.sampleElevation(x, y + h) - this.sampleElevation(x, y - h);
+
+                    return { x: ex / (2 * h), y: ey / (2 * h) };
+                }
+
+                getAngleChange() {
+                    const lastSpeed = Math.hypot(this.lastVel.x, this.lastVel.y);
+                    const currSpeed = Math.hypot(this.vel.x, this.vel.y);
+
+                    if (lastSpeed < 0.01 || currSpeed < 0.01) return 0;
+
+                    // Dot product for angle between velocity vectors
+                    const dot = (this.lastVel.x * this.vel.x + this.lastVel.y * this.vel.y) /
+                                (lastSpeed * currSpeed);
+                    return Math.acos(Math.max(-1, Math.min(1, dot)));
+                }
+
+                handleEdges() {
+                    const margin = 2;
+
+                    if (this.pos.x < margin) {
+                        this.pos.x = margin;
+                        this.vel.x = Math.abs(this.vel.x) * this.bounce;
+                    }
+                    if (this.pos.x > this.gridWidth - margin) {
+                        this.pos.x = this.gridWidth - margin;
+                        this.vel.x = -Math.abs(this.vel.x) * this.bounce;
+                    }
+                    if (this.pos.y < margin) {
+                        this.pos.y = margin;
+                        this.vel.y = Math.abs(this.vel.y) * this.bounce;
+                    }
+                    if (this.pos.y > this.gridHeight - margin) {
+                        this.pos.y = this.gridHeight - margin;
+                        this.vel.y = -Math.abs(this.vel.y) * this.bounce;
+                    }
+                }
+
+                triggerNote(intensity) {
+                    if (!this.scaleManager) return;
+
+                    // Get pitch from elevation
+                    const elevation = this.sampleElevation(this.pos.x, this.pos.y);
+                    const frequency = this.elevationToPitch(elevation);
+
+                    // Velocity based on direction change intensity
+                    const velocity = Math.min(1, 0.4 + (intensity / Math.PI) * 0.6);
+
+                    // Release previous note if still playing
+                    if (this.activeNoteId) {
+                        this.onNoteOff(this.activeNoteId);
+                        if (this.noteTimeout) {
+                            clearTimeout(this.noteTimeout);
+                        }
+                    }
+
+                    // Play new note
+                    const id = `gravity_${Date.now()}`;
+                    this.activeNoteId = id;
+                    this.onNoteOn(id, frequency, velocity);
+
+                    // Auto-release after short duration
+                    this.noteTimeout = setTimeout(() => {
+                        if (this.activeNoteId === id) {
+                            this.onNoteOff(id);
+                            this.activeNoteId = null;
+                        }
+                    }, 200);
+
+                    // Notify visualization
+                    if (this.onTrigger) {
+                        this.onTrigger(this.pos.x, this.pos.y, frequency, velocity);
+                    }
+                }
+
+                elevationToPitch(elevation) {
+                    // Elevation is -1 to 1, map to 0-1
+                    const norm = (elevation + 1) / 2;
+
+                    // Get notes in range from scale manager
+                    const notes = this.scaleManager.getNotesInRange(
+                        this.octaveLow,
+                        this.octaveHigh
+                    );
+
+                    if (notes.length === 0) return 440; // Fallback
+
+                    const index = Math.floor(norm * (notes.length - 1));
+                    const clampedIndex = Math.max(0, Math.min(notes.length - 1, index));
+
+                    return notes[clampedIndex].frequency;
+                }
+
+                handleSettle() {
+                    this.running = false;
+
+                    // Notify listeners
+                    if (this.onSettle) {
+                        this.onSettle(this.pos.x, this.pos.y);
+                    }
+
+                    // Auto-drop if enabled
+                    if (this.autoDrop) {
+                        setTimeout(() => {
+                            this.dropAtRandomPeak();
+                        }, 800);
+                    }
+                }
+            }
+
+            // ============================================================
             // MODULATION SYSTEM (LFOs, S&H, Drift, MIDI)
             // ============================================================
 
@@ -3920,6 +4492,9 @@
                         "(prefers-color-scheme: light)",
                     ).matches;
                     this.isLoading = false;
+
+                    // Gravity flow sequencer
+                    this.gravityFlow = null;
                 }
 
                 async initialize() {
@@ -3968,6 +4543,24 @@
                         (id) => this.noteOff(id),
                     );
                     this.sequencer.setScaleManager(this.scaleManager);
+
+                    // Initialize gravity flow sequencer
+                    this.gravityFlow = new GravityFlowSequencer(
+                        (id, freq, vel) => this.noteOn(id, freq, vel),
+                        (id) => this.noteOff(id),
+                    );
+                    this.gravityFlow.setScaleManager(this.scaleManager);
+
+                    // Connect gravity flow to terrain visualization
+                    this.gravityFlow.onPositionUpdate = (x, y) => {
+                        this.terrain3D.updateBallPosition(x, y);
+                    };
+                    this.gravityFlow.onTrigger = (x, y, freq, vel) => {
+                        this.terrain3D.flashBallTrigger();
+                    };
+                    this.gravityFlow.onSettle = (x, y) => {
+                        this.updateGravityStatus('Settled');
+                    };
 
                     // Initialize modulation system
                     this.modManager = new ModulationManager();
@@ -4387,6 +4980,70 @@
                         .addEventListener("click", () => {
                             this.handleMyLocation();
                         });
+
+                    // --------------------------------------------------------
+                    // Gravity Flow Controls
+                    // --------------------------------------------------------
+
+                    // Drop button
+                    document
+                        .getElementById("gravity-drop-btn")
+                        .addEventListener("click", () => {
+                            this.dropGravityBall();
+                        });
+
+                    // Gravity strength
+                    const gravityStrength = document.getElementById("gravity-strength");
+                    const gravityStrengthValue = document.getElementById("gravity-strength-value");
+                    gravityStrength.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        gravityStrengthValue.textContent = `${Math.round(value * 100)}%`;
+                        this.gravityFlow.setGravity(value);
+                    });
+
+                    // Friction
+                    const gravityFriction = document.getElementById("gravity-friction");
+                    const gravityFrictionValue = document.getElementById("gravity-friction-value");
+                    gravityFriction.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        // Map 0.9-0.995 to display as 0-100%
+                        const display = Math.round(((value - 0.9) / 0.095) * 100);
+                        gravityFrictionValue.textContent = `${display}%`;
+                        this.gravityFlow.setFriction(value);
+                    });
+
+                    // Bounce
+                    const gravityBounce = document.getElementById("gravity-bounce");
+                    const gravityBounceValue = document.getElementById("gravity-bounce-value");
+                    gravityBounce.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        gravityBounceValue.textContent = `${Math.round(value * 100)}%`;
+                        this.gravityFlow.setBounce(value);
+                    });
+
+                    // Trigger threshold
+                    const gravityTrigger = document.getElementById("gravity-trigger");
+                    const gravityTriggerValue = document.getElementById("gravity-trigger-value");
+                    gravityTrigger.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        // Convert radians to degrees for display
+                        const degrees = Math.round(value * (180 / Math.PI));
+                        gravityTriggerValue.textContent = `${degrees}°`;
+                        this.gravityFlow.setTriggerThreshold(value);
+                    });
+
+                    // Auto-drop checkbox
+                    document
+                        .getElementById("gravity-auto")
+                        .addEventListener("change", (e) => {
+                            this.gravityFlow.setAutoDrop(e.target.checked);
+                        });
+
+                    // Click on terrain canvas to drop ball
+                    const terrainCanvas = document.getElementById("terrain-canvas");
+                    terrainCanvas.addEventListener("click", (e) => {
+                        this.handleTerrainClick(e);
+                    });
                 }
 
                 updateKeyboard() {
@@ -4527,6 +5184,12 @@
                     this.waveformDisplay.setFrames(result.frames);
                     this.terrain3D.setFrames(result.frames, false);
 
+                    // Update gravity flow with new terrain data
+                    this.gravityFlow.setFrames(result.frames);
+                    this.gravityFlow.stop();
+                    this.terrain3D.hideBall();
+                    this.updateGravityStatus('Click terrain');
+
                     console.log(
                         `Reprocessed terrain at ${this.terrainIntensity}% intensity`,
                     );
@@ -4594,6 +5257,10 @@
                         );
                         this.terrain3D.setFrames(this.wavetableData.frames);
 
+                        // Update gravity flow sequencer with terrain data
+                        this.gravityFlow.setFrames(this.wavetableData.frames);
+                        this.updateGravityStatus('Click terrain');
+
                         // Hide empty state
                         document
                             .getElementById("terrain-empty")
@@ -4639,6 +5306,62 @@
                     // CC1 = Mod wheel
                     if (cc === 1) {
                         this.modManager.setMidiWheel(value);
+                    }
+                }
+
+                // --------------------------------------------------------
+                // Gravity Flow Methods
+                // --------------------------------------------------------
+
+                dropGravityBall() {
+                    if (!this.wavetableData) {
+                        this.updateGravityStatus('Load terrain first');
+                        return;
+                    }
+
+                    // Clear trail and drop at random peak
+                    this.terrain3D.hideBall();
+                    this.gravityFlow.dropAtRandomPeak();
+                    this.updateGravityStatus('Rolling...');
+                }
+
+                handleTerrainClick(event) {
+                    if (!this.wavetableData) return;
+
+                    // Convert click position to grid coordinates
+                    const canvas = event.target;
+                    const rect = canvas.getBoundingClientRect();
+                    const clickX = event.clientX - rect.left;
+                    const clickY = event.clientY - rect.top;
+
+                    // Use raycasting to find intersection with terrain
+                    // For simplicity in v1, we'll use a rough approximation based on click position
+                    // A proper implementation would use THREE.Raycaster
+
+                    // Get camera and calculate approximate grid position
+                    // This is a simplified approach - clicking anywhere drops at a calculated position
+                    const normalizedX = clickX / rect.width;
+                    const normalizedY = clickY / rect.height;
+
+                    // Map to grid coordinates (accounting for camera perspective roughly)
+                    // These values work reasonably for the default camera angle
+                    const gridX = Math.floor(normalizedX * this.gravityFlow.gridWidth);
+                    const gridY = Math.floor((1 - normalizedY) * this.gravityFlow.gridHeight);
+
+                    // Clamp to valid range
+                    const clampedX = Math.max(10, Math.min(this.gravityFlow.gridWidth - 10, gridX));
+                    const clampedY = Math.max(2, Math.min(this.gravityFlow.gridHeight - 2, gridY));
+
+                    // Clear trail and drop
+                    this.terrain3D.hideBall();
+                    this.gravityFlow.drop(clampedX, clampedY);
+                    this.updateGravityStatus('Rolling...');
+                }
+
+                updateGravityStatus(status) {
+                    const el = document.getElementById('gravity-status');
+                    if (el) {
+                        el.textContent = status;
                     }
                 }
 
