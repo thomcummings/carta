@@ -1211,6 +1211,18 @@
                         />
                         <span class="value" id="reverb-decay-value">2.0s</span>
                     </div>
+                    <div class="fx-param">
+                        <label>Damp</label>
+                        <input
+                            type="range"
+                            id="reverb-damping"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.4"
+                            data-tooltip="High frequency damping"
+                        />
+                    </div>
                 </div>
                 <div class="fx-section">
                     <div class="section-title">
@@ -1945,8 +1957,8 @@
                     this.output = audioCtx.createGain();
 
                     // Parameters
-                    this.decay = 0.85;
-                    this.damping = 0.3;
+                    this.decay = 0.7;
+                    this.damping = 0.4;
                     this.size = 1.0;
                     this.modDepth = 0.002;
                     this.modRate = 0.5;
@@ -2129,8 +2141,8 @@
                 }
 
                 setDecay(value) {
-                    // value 0-1, map to feedback 0.7-0.98
-                    this.decay = 0.7 + value * 0.28;
+                    // value 0-1, map to feedback 0.5-0.9 (safer range to avoid runaway)
+                    this.decay = 0.5 + value * 0.4;
                     for (const comb of this.combs) {
                         comb.feedbackGain.gain.setValueAtTime(
                             this.decay,
@@ -2290,6 +2302,12 @@
                     if (this.reverb) {
                         const normalized = Math.min(1, (decay - 0.1) / 4.9);
                         this.reverb.setDecay(normalized);
+                    }
+                }
+
+                setReverbDamping(damping) {
+                    if (this.reverb) {
+                        this.reverb.setDamping(damping);
                     }
                 }
 
@@ -4134,6 +4152,14 @@
                         this.audio.setReverbDecay(value);
                         reverbDecayValue.textContent = `${value.toFixed(1)}s`;
                     });
+
+                    document
+                        .getElementById("reverb-damping")
+                        .addEventListener("input", (e) => {
+                            this.audio.setReverbDamping(
+                                parseFloat(e.target.value),
+                            );
+                        });
 
                     // Generative controls
                     document
