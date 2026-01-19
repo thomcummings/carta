@@ -3821,9 +3821,17 @@
                 }
 
                 // Called by ModulationManager with raw 0-1 value
+                // Modulates around baseValue: output swings from (baseValue - range/2) to (baseValue + range/2)
+                // Offset shifts this range up or down
                 update(rawValue) {
-                    const scaled = this.offset + rawValue * this.range;
-                    const clamped = Math.max(0, Math.min(1, scaled));
+                    // rawValue is 0-1, convert to -0.5 to +0.5 for bipolar modulation
+                    const bipolar = rawValue - 0.5;
+                    // Scale by range and add to base value, then apply offset
+                    const modulated =
+                        this.baseValue +
+                        bipolar * this.range +
+                        (this.offset - 0.5) * this.range;
+                    const clamped = Math.max(0, Math.min(1, modulated));
                     this.onChange(clamped);
                 }
 
