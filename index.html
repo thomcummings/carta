@@ -132,6 +132,27 @@
                 border-color: var(--text);
             }
 
+            /* Preset dropdown */
+            .preset-select {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 8px;
+                font-family: inherit;
+                font-size: 10px;
+                cursor: pointer;
+                min-width: 140px;
+            }
+
+            .preset-select:hover {
+                border-color: var(--text-muted);
+            }
+
+            .preset-select:focus {
+                outline: none;
+                border-color: var(--text);
+            }
+
             /* ============================================================
            MAIN CONTENT AREA
            ============================================================ */
@@ -890,6 +911,12 @@
                 <h1>Carta</h1>
                 <div class="header-controls">
                     <div class="control-group">
+                        <label for="preset-select">Preset</label>
+                        <select id="preset-select" class="preset-select">
+                            <!-- Populated from FACTORY_PRESETS -->
+                        </select>
+                    </div>
+                    <div class="control-group">
                         <label for="master-volume">Vol</label>
                         <input
                             type="range"
@@ -1432,6 +1459,9 @@
         <!-- External libraries -->
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+        <!-- Presets -->
+        <script src="presets.js"></script>
 
         <script>
             // OrbitControls inline (since CDN version has module issues)
@@ -4343,6 +4373,26 @@
                         },
                     );
 
+                    // Preset dropdown
+                    const presetSelect =
+                        document.getElementById("preset-select");
+                    FACTORY_PRESETS.forEach((preset, index) => {
+                        const option = document.createElement("option");
+                        option.value = index;
+                        option.textContent = preset.name;
+                        if (preset.isPlaceholder) {
+                            option.disabled = true;
+                            option.selected = true;
+                        }
+                        presetSelect.appendChild(option);
+                    });
+                    presetSelect.addEventListener("change", (e) => {
+                        const preset = FACTORY_PRESETS[e.target.value];
+                        if (preset && !preset.isPlaceholder) {
+                            this.loadPreset(preset);
+                        }
+                    });
+
                     // Theme toggle
                     document
                         .getElementById("theme-toggle")
@@ -4507,6 +4557,245 @@
                     );
                 }
 
+                async loadPreset(preset) {
+                    console.log(`Loading preset: ${preset.name}`);
+                    this.setStatus(
+                        `Loading preset: ${preset.name}...`,
+                        "loading",
+                    );
+
+                    // Initialize audio if needed
+                    await this.audio.initialize();
+
+                    // Helper to set slider value and trigger display update
+                    const setSlider = (id, value, displayId, formatter) => {
+                        const slider = document.getElementById(id);
+                        if (slider) {
+                            slider.value = value;
+                            if (displayId && formatter) {
+                                const display =
+                                    document.getElementById(displayId);
+                                if (display)
+                                    display.textContent = formatter(value);
+                            }
+                            slider.dispatchEvent(new Event("input"));
+                        }
+                    };
+
+                    const setSelect = (id, value) => {
+                        const select = document.getElementById(id);
+                        if (select) {
+                            select.value = value;
+                            select.dispatchEvent(new Event("change"));
+                        }
+                    };
+
+                    // Volume
+                    setSlider("master-volume", preset.volume);
+                    this.audio.setMasterVolume(preset.volume);
+
+                    // Area size
+                    setSelect("area-size", preset.areaSize);
+
+                    // Morph
+                    setSlider(
+                        "morph-slider",
+                        preset.morph.position,
+                        "morph-value",
+                        (v) => parseFloat(v).toFixed(2),
+                    );
+                    this.audio.setMorphPosition(preset.morph.position);
+                    setSelect("morph-mod-source", preset.morph.modSource);
+                    setSlider("morph-mod-range", preset.morph.modRange);
+                    setSlider("morph-mod-offset", preset.morph.modOffset);
+                    if (this.morphMod) {
+                        this.morphMod.setRange(preset.morph.modRange);
+                        this.morphMod.setOffset(preset.morph.modOffset);
+                    }
+
+                    // Filter
+                    setSlider(
+                        "filter-cutoff",
+                        preset.filter.cutoff,
+                        "filter-cutoff-value",
+                        (v) =>
+                            v >= 1000
+                                ? `${(v / 1000).toFixed(1)}k`
+                                : `${Math.round(v)}`,
+                    );
+                    setSlider(
+                        "filter-resonance",
+                        preset.filter.resonance,
+                        "filter-resonance-value",
+                        (v) => parseFloat(v).toFixed(1),
+                    );
+                    this.audio.setFilterCutoff(preset.filter.cutoff);
+                    this.audio.setFilterResonance(preset.filter.resonance);
+                    setSelect("filter-mod-source", preset.filter.modSource);
+                    setSlider("filter-mod-range", preset.filter.modRange);
+                    setSlider("filter-mod-offset", preset.filter.modOffset);
+                    if (this.filterMod) {
+                        this.filterMod.setRange(preset.filter.modRange);
+                        this.filterMod.setOffset(preset.filter.modOffset);
+                    }
+
+                    // LFOs
+                    setSlider(
+                        "lfo1-rate",
+                        preset.lfo1.rate,
+                        "lfo1-rate-value",
+                        (v) => {
+                            const hz = 0.05 * Math.pow(10 / 0.05, v);
+                            return hz.toFixed(hz < 1 ? 2 : 1);
+                        },
+                    );
+                    setSlider(
+                        "lfo2-rate",
+                        preset.lfo2.rate,
+                        "lfo2-rate-value",
+                        (v) => {
+                            const hz = 0.05 * Math.pow(10 / 0.05, v);
+                            return hz.toFixed(hz < 1 ? 2 : 1);
+                        },
+                    );
+
+                    // ADSR
+                    setSlider(
+                        "attack",
+                        preset.adsr.attack,
+                        "attack-value",
+                        (v) => parseFloat(v).toFixed(2),
+                    );
+                    setSlider("decay", preset.adsr.decay, "decay-value", (v) =>
+                        parseFloat(v).toFixed(2),
+                    );
+                    setSlider(
+                        "sustain",
+                        preset.adsr.sustain,
+                        "sustain-value",
+                        (v) => parseFloat(v).toFixed(2),
+                    );
+                    setSlider(
+                        "release",
+                        preset.adsr.release,
+                        "release-value",
+                        (v) => parseFloat(v).toFixed(2),
+                    );
+                    this.updateADSR();
+
+                    // Reverb
+                    setSlider(
+                        "reverb-mix",
+                        preset.reverb.mix,
+                        "reverb-mix-value",
+                        (v) => `${Math.round(v * 100)}%`,
+                    );
+                    setSlider(
+                        "reverb-size",
+                        preset.reverb.size,
+                        "reverb-size-value",
+                        (v) => `${Math.round(v * 100)}%`,
+                    );
+                    setSlider(
+                        "reverb-decay",
+                        preset.reverb.decay,
+                        "reverb-decay-value",
+                        (v) => `${parseFloat(v).toFixed(1)}s`,
+                    );
+                    setSlider(
+                        "reverb-predelay",
+                        preset.reverb.predelay,
+                        "reverb-predelay-value",
+                        (v) => `${Math.round(v)}ms`,
+                    );
+                    setSlider(
+                        "reverb-damping",
+                        preset.reverb.damping,
+                        "reverb-damping-value",
+                        (v) => `${Math.round(v * 100)}%`,
+                    );
+                    setSlider(
+                        "reverb-shimmer",
+                        preset.reverb.shimmer,
+                        "reverb-shimmer-value",
+                        (v) => `${Math.round(v * 100)}%`,
+                    );
+                    this.audio.setReverbMix(preset.reverb.mix);
+                    this.audio.setReverbSize(preset.reverb.size);
+                    this.audio.setReverbDecay(preset.reverb.decay);
+                    this.audio.setReverbPreDelay(preset.reverb.predelay);
+                    this.audio.setReverbDamping(preset.reverb.damping);
+                    this.audio.setReverbShimmer(preset.reverb.shimmer);
+
+                    // Sequencer
+                    setSlider(
+                        "gen-bpm",
+                        preset.sequencer.tempo,
+                        "gen-bpm-value",
+                        (v) => `${Math.round(v)}`,
+                    );
+                    setSlider(
+                        "gen-probability",
+                        preset.sequencer.probability,
+                        "gen-probability-value",
+                        (v) => `${Math.round(v)}%`,
+                    );
+                    this.sequencer.setTempo(preset.sequencer.tempo);
+                    this.sequencer.setProbability(
+                        preset.sequencer.probability / 100,
+                    );
+                    setSelect("gen-length", preset.sequencer.length);
+                    setSelect("gen-pattern", preset.sequencer.pattern);
+                    setSelect("root-note", preset.sequencer.rootNote);
+                    setSelect("scale-type", preset.sequencer.scale);
+
+                    // Octave range (dual slider)
+                    const octaveSlider =
+                        document.getElementById("octave-range");
+                    if (octaveSlider) {
+                        const lowThumb =
+                            octaveSlider.querySelector(".range-thumb.low");
+                        const highThumb =
+                            octaveSlider.querySelector(".range-thumb.high");
+                        if (lowThumb)
+                            lowThumb.dataset.value = preset.sequencer.octaveLow;
+                        if (highThumb)
+                            highThumb.dataset.value =
+                                preset.sequencer.octaveHigh;
+                        // Trigger update through scale manager
+                        this.scaleManager.setOctaveRange(
+                            preset.sequencer.octaveLow,
+                            preset.sequencer.octaveHigh,
+                        );
+                        const display =
+                            document.getElementById("octave-range-value");
+                        if (display)
+                            display.textContent = `${preset.sequencer.octaveLow}-${preset.sequencer.octaveHigh}`;
+                    }
+
+                    // Update scale
+                    this.scaleManager.setRoot(preset.sequencer.rootNote);
+                    this.scaleManager.setScale(preset.sequencer.scale);
+                    this.updateKeyboard();
+
+                    // Terrain stacking (feature/terrain-stacking branch)
+                    // Uncomment when merged:
+                    // if (preset.stacking) {
+                    //     setSlider("stack-frames", preset.stacking.frames, "stack-frames-value", v => v);
+                    //     setSlider("stack-spread", preset.stacking.spread, "stack-spread-value", v => `${v}%`);
+                    //     this.audio.setStackFrames(preset.stacking.frames);
+                    //     this.audio.setStackSpread(preset.stacking.spread);
+                    // }
+
+                    // Load terrain from location
+                    if (preset.location) {
+                        const { lat, lng } = preset.location;
+                        this.map.goTo(lat, lng, 13);
+                        // Trigger terrain fetch
+                        await this.onMapClick(lat, lng);
+                    }
+
+                    this.setStatus(`Loaded preset: ${preset.name}`);
                 reprocessTerrain() {
                     if (!this.rawElevations) {
                         return; // No terrain loaded yet
