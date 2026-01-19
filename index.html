@@ -141,7 +141,7 @@
                 font-family: inherit;
                 font-size: 10px;
                 cursor: pointer;
-                min-width: 140px;
+                min-width: 160px;
             }
 
             .preset-select:hover {
@@ -3078,6 +3078,12 @@
                     this.onLocationSelect(lat, lng);
                 }
 
+                // Move map view and show marker without triggering terrain fetch
+                setViewOnly(lat, lng, zoom = 10) {
+                    this.map.setView([lat, lng], zoom);
+                    this.showSelection(lat, lng);
+                }
+
                 showSelection(lat, lng) {
                     if (this.marker) this.map.removeLayer(this.marker);
                     if (this.areaRect) this.map.removeLayer(this.areaRect);
@@ -3321,6 +3327,11 @@
                         if (option) {
                             this.selectOption(parseInt(option.dataset.index));
                         }
+                    });
+
+                    // Sync display when native select changes programmatically
+                    this.select.addEventListener("change", () => {
+                        this.syncFromSelect();
                     });
 
                     // Close on outside click
@@ -4838,11 +4849,12 @@
                     // }
 
                     // Load terrain from location
+                    // Note: map.goTo() already triggers onMapClick via onLocationSelect
                     if (preset.location) {
                         const { lat, lng } = preset.location;
-                        this.map.goTo(lat, lng, 13);
-                        // Trigger terrain fetch
                         await this.onMapClick(lat, lng);
+                        // Move map view after terrain starts loading
+                        this.map.setViewOnly(lat, lng, 13);
                     }
 
                     this.setStatus(`Loaded preset: ${preset.name}`);
