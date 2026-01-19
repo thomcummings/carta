@@ -1448,11 +1448,11 @@
                             min="0.1"
                             max="1"
                             step="0.01"
-                            value="0.5"
+                            value="0.7"
                             data-tooltip="Descent speed"
                         />
                         <span class="param-value" id="gravity-strength-value"
-                            >50%</span
+                            >70%</span
                         >
                     </div>
                     <div class="column-param">
@@ -1463,11 +1463,11 @@
                             min="0.9"
                             max="0.995"
                             step="0.001"
-                            value="0.97"
+                            value="0.98"
                             data-tooltip="How quickly ball settles"
                         />
                         <span class="param-value" id="gravity-friction-value"
-                            >70%</span
+                            >84%</span
                         >
                     </div>
                     <div class="column-param">
@@ -1478,11 +1478,11 @@
                             min="0"
                             max="0.9"
                             step="0.01"
-                            value="0.4"
+                            value="0.5"
                             data-tooltip="Energy retained on direction change"
                         />
                         <span class="param-value" id="gravity-bounce-value"
-                            >40%</span
+                            >50%</span
                         >
                     </div>
                     <div class="column-param">
@@ -1493,11 +1493,11 @@
                             min="0.1"
                             max="1.5"
                             step="0.01"
-                            value="0.35"
+                            value="0.3"
                             data-tooltip="Direction change threshold for note trigger"
                         />
                         <span class="param-value" id="gravity-trigger-value"
-                            >20°</span
+                            >17°</span
                         >
                     </div>
                     <div class="column-param">
@@ -3896,10 +3896,10 @@
                     this.running = false;
 
                     // Tunable parameters
-                    this.gravity = 0.5;           // 0.1-1
-                    this.friction = 0.97;         // 0.9-0.995
-                    this.bounce = 0.4;            // 0-0.9
-                    this.triggerThreshold = 0.35; // radians (~20 degrees)
+                    this.gravity = 0.7;           // 0.1-1 (higher = faster descent)
+                    this.friction = 0.98;         // 0.9-0.995 (higher = less friction)
+                    this.bounce = 0.5;            // 0-0.9 (energy retained on bounce)
+                    this.triggerThreshold = 0.3;  // radians (~17 degrees)
 
                     // Auto-drop mode
                     this.autoDrop = false;
@@ -3921,6 +3921,9 @@
                     // Note tracking
                     this.activeNoteId = null;
                     this.noteTimeout = null;
+
+                    // Settle detection - require sustained slow speed
+                    this.slowFrames = 0;
                 }
 
                 setFrames(frames) {
@@ -3961,7 +3964,8 @@
                     this.vel = { x: 0, y: 0 };
                     this.lastVel = { x: 0, y: 0 };
                     this.running = true;
-                    this.frameCount = 0; // Grace period before settle detection
+                    this.frameCount = 0;  // Grace period before settle detection
+                    this.slowFrames = 0;  // Reset slow frame counter
 
                     console.log(`GravityFlow: Dropping ball at (${x.toFixed(1)}, ${y.toFixed(1)})`);
 
@@ -4072,7 +4076,8 @@
                     }
 
                     // Detect direction change before updating position
-                    if (speed > 1) {
+                    // Lower speed threshold to catch more direction changes
+                    if (speed > 0.5) {
                         const angleChange = this.getAngleChange();
                         if (angleChange > this.triggerThreshold) {
                             this.triggerNote(angleChange);
@@ -4091,10 +4096,17 @@
                         this.onPositionUpdate(this.pos.x, this.pos.y);
                     }
 
-                    // Check if settled (with grace period to let ball accelerate first)
-                    if (this.frameCount > 60 && speed < 0.5) {
-                        console.log('GravityFlow: Ball settled');
-                        this.handleSettle();
+                    // Check if settled (require sustained slow speed)
+                    if (this.frameCount > 30) {  // Initial grace period
+                        if (speed < 0.3) {
+                            this.slowFrames++;
+                            if (this.slowFrames > 90) {  // ~1.5 seconds of slow movement
+                                console.log('GravityFlow: Ball settled');
+                                this.handleSettle();
+                            }
+                        } else {
+                            this.slowFrames = 0;  // Reset if ball speeds up again
+                        }
                     }
 
                     // Store for next frame comparison
@@ -4150,22 +4162,35 @@
 
                 handleEdges() {
                     const margin = 2;
+                    let bounced = false;
 
                     if (this.pos.x < margin) {
                         this.pos.x = margin;
                         this.vel.x = Math.abs(this.vel.x) * this.bounce;
+                        bounced = true;
                     }
                     if (this.pos.x > this.gridWidth - margin) {
                         this.pos.x = this.gridWidth - margin;
                         this.vel.x = -Math.abs(this.vel.x) * this.bounce;
+                        bounced = true;
                     }
                     if (this.pos.y < margin) {
                         this.pos.y = margin;
                         this.vel.y = Math.abs(this.vel.y) * this.bounce;
+                        bounced = true;
                     }
                     if (this.pos.y > this.gridHeight - margin) {
                         this.pos.y = this.gridHeight - margin;
                         this.vel.y = -Math.abs(this.vel.y) * this.bounce;
+                        bounced = true;
+                    }
+
+                    // Trigger note on edge bounce
+                    if (bounced) {
+                        const speed = Math.hypot(this.vel.x, this.vel.y);
+                        if (speed > 0.3) {
+                            this.triggerNote(Math.PI / 2);  // Treat bounce as 90° turn
+                        }
                     }
                 }
 
