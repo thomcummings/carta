@@ -12,7 +12,7 @@
 //
 // Parameter reference:
 // - location: { lat, lng } - coordinates for terrain fetch
-// - areaSize: "0.5" | "1" | "2" | "5" - km² area to fetch
+// - areaSize: "5" | "10" | "50" - km area to fetch
 // - volume: 0-1 - master volume
 // - morph.position: 0-1 - morph slider position
 // - morph.modSource: "manual" | "lfo1" | "lfo2" | "snh" | "drift" | "midi-wheel" | "midi-velocity"
@@ -24,7 +24,8 @@
 // - lfo1.rate, lfo2.rate: 0-1 (exponential, maps to 0.05-10Hz)
 // - adsr: attack/decay/release in seconds, sustain 0-1
 // - reverb: mix/size/damping/shimmer 0-1, decay 0.1-5s, predelay 0-100ms
-// - sequencer: tempo in BPM, length 4/8/16/32, pattern name, probability 0-100
+// - sequencer: tempo in BPM, length "0.25"|"0.5"|"1"|"2"|"4" (1/16 to whole note), probability 0-100
+// - sequencer: pattern "random"|"ascending"|"descending"|"pendulum"
 // - sequencer: scale name, rootNote A-G, octaveLow/octaveHigh 1-7
 //
 // ============================================================
@@ -39,7 +40,7 @@ const FACTORY_PRESETS = [
         name: "Alpine Peaks",
         description: "Jagged Swiss mountain terrain with bright, evolving textures",
         location: { lat: 46.5197, lng: 7.9597 },
-        areaSize: "1",
+        areaSize: "5",
         volume: 0.7,
 
         morph: {
@@ -73,8 +74,8 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 90,
-            length: "8",
-            pattern: "up-down",
+            length: "0.5",
+            pattern: "pendulum",
             probability: 75,
             scale: "minor",
             rootNote: "D",
@@ -94,7 +95,7 @@ const FACTORY_PRESETS = [
         name: "Grand Canyon",
         description: "Layered Arizona canyon with deep, resonant character",
         location: { lat: 36.0544, lng: -112.1401 },
-        areaSize: "2",
+        areaSize: "10",
         volume: 0.7,
 
         morph: {
@@ -128,7 +129,7 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 60,
-            length: "16",
+            length: "0.25",
             pattern: "random",
             probability: 50,
             scale: "dorian",
@@ -147,7 +148,7 @@ const FACTORY_PRESETS = [
         name: "Sahara Dunes",
         description: "Smooth rolling sand dunes with gentle, warm tones",
         location: { lat: 25.0494, lng: 10.4451 },
-        areaSize: "2",
+        areaSize: "10",
         volume: 0.7,
 
         morph: {
@@ -181,8 +182,8 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 75,
-            length: "8",
-            pattern: "up",
+            length: "0.5",
+            pattern: "ascending",
             probability: 60,
             scale: "phrygian",
             rootNote: "E",
@@ -200,7 +201,7 @@ const FACTORY_PRESETS = [
         name: "Icelandic Fjords",
         description: "Sharp coastal ridges with icy, crystalline textures",
         location: { lat: 65.6835, lng: -18.1002 },
-        areaSize: "1",
+        areaSize: "5",
         volume: 0.7,
 
         morph: {
@@ -234,8 +235,8 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 130,
-            length: "8",
-            pattern: "up-down",
+            length: "0.5",
+            pattern: "pendulum",
             probability: 85,
             scale: "minor",
             rootNote: "F#",
@@ -253,7 +254,7 @@ const FACTORY_PRESETS = [
         name: "Himalayan Ridge",
         description: "Extreme elevation with massive, powerful harmonics",
         location: { lat: 27.9881, lng: 86.9250 },
-        areaSize: "1",
+        areaSize: "5",
         volume: 0.65,
 
         morph: {
@@ -287,10 +288,10 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 70,
-            length: "16",
+            length: "0.25",
             pattern: "random",
             probability: 40,
-            scale: "pentatonic-major",
+            scale: "pentatonic",
             rootNote: "G",
             octaveLow: 2,
             octaveHigh: 5,
@@ -306,7 +307,7 @@ const FACTORY_PRESETS = [
         name: "Scottish Highlands",
         description: "Rolling green hills with warm, pastoral character",
         location: { lat: 57.0442, lng: -4.8596 },
-        areaSize: "2",
+        areaSize: "10",
         volume: 0.7,
 
         morph: {
@@ -340,8 +341,8 @@ const FACTORY_PRESETS = [
 
         sequencer: {
             tempo: 100,
-            length: "8",
-            pattern: "up",
+            length: "0.5",
+            pattern: "ascending",
             probability: 70,
             scale: "mixolydian",
             rootNote: "G",

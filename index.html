@@ -4647,7 +4647,21 @@
                         const select = document.getElementById(id);
                         if (select) {
                             select.value = value;
-                            select.dispatchEvent(new Event("change"));
+                            select.dispatchEvent(new Event("change", { bubbles: true }));
+
+                            // Directly update CustomSelect wrapper display
+                            const wrapper = select.closest(".custom-select");
+                            if (wrapper) {
+                                const valueDisplay = wrapper.querySelector(".custom-select-value");
+                                const selectedOption = select.options[select.selectedIndex];
+                                if (valueDisplay && selectedOption) {
+                                    valueDisplay.textContent = selectedOption.text;
+                                }
+                                // Update selected class on options
+                                wrapper.querySelectorAll(".custom-select-option").forEach((opt, i) => {
+                                    opt.classList.toggle("selected", i === select.selectedIndex);
+                                });
+                            }
                         }
                     };
 
