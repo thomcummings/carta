@@ -2194,6 +2194,8 @@
                 constructor() {
                     this.audioCtx = null;
                     this.masterGain = null;
+                    this.limiter = null;
+                    this.voiceGain = null; // Pre-voice gain for polyphony compensation
                     this.filter = null;
                     this.dryGain = null;
                     this.wetGain = null;
@@ -2236,19 +2238,35 @@
                     this.dryGain.gain.value = 1;
                     this.wetGain.gain.value = 0;
 
-                    // Master gain
+                    // Voice gain for polyphony compensation
+                    // This gain is adjusted dynamically based on active voice count
+                    this.voiceGain = this.audioCtx.createGain();
+                    this.voiceGain.gain.value = 1.0;
+
+                    // Master gain (user volume control)
                     this.masterGain = this.audioCtx.createGain();
                     this.masterGain.gain.value = 0.7;
 
+                    // Soft limiter to prevent clipping
+                    // Configured as a limiter: low threshold, high ratio, fast attack
+                    this.limiter = this.audioCtx.createDynamicsCompressor();
+                    this.limiter.threshold.value = -6; // Start limiting at -6dB
+                    this.limiter.knee.value = 3; // Soft knee for smoother limiting
+                    this.limiter.ratio.value = 20; // High ratio acts as limiter
+                    this.limiter.attack.value = 0.003; // Fast attack to catch transients
+                    this.limiter.release.value = 0.1; // Quick release to recover
+
                     // Signal routing:
-                    // voices -> filter -> dryGain -> masterGain -> destination
-                    //                  -> reverb -> wetGain -> masterGain
+                    // voices -> voiceGain -> filter -> dryGain -> masterGain -> limiter -> destination
+                    //                              -> reverb -> wetGain -> masterGain
+                    this.voiceGain.connect(this.filter);
                     this.filter.connect(this.dryGain);
                     this.filter.connect(this.reverb.input);
                     this.reverb.output.connect(this.wetGain);
                     this.dryGain.connect(this.masterGain);
                     this.wetGain.connect(this.masterGain);
-                    this.masterGain.connect(this.audioCtx.destination);
+                    this.masterGain.connect(this.limiter);
+                    this.limiter.connect(this.audioCtx.destination);
 
                     this.loadDefaultWave();
 
@@ -2388,10 +2406,30 @@
                     const voice = this.createVoice(frequency, velocity);
                     this.voices.set(noteId, voice);
 
+                    // Update voice gain compensation for polyphony
+                    this.updateVoiceGain();
+
                     this.triggerAttack(voice.envGain);
 
                     voice.oscA.start();
                     voice.oscB.start();
+                }
+
+                // Adjusts voiceGain based on number of active voices to prevent clipping
+                // Uses square root scaling for natural-sounding gain reduction
+                updateVoiceGain() {
+                    if (!this.voiceGain) return;
+
+                    const voiceCount = this.voices.size;
+                    // Scale gain by 1/sqrt(n) - provides good balance between
+                    // preventing clipping and maintaining perceived loudness
+                    const targetGain = voiceCount > 0 ? 1 / Math.sqrt(voiceCount) : 1;
+
+                    // Smooth transition to avoid clicks
+                    const now = this.audioCtx.currentTime;
+                    this.voiceGain.gain.cancelScheduledValues(now);
+                    this.voiceGain.gain.setValueAtTime(this.voiceGain.gain.value, now);
+                    this.voiceGain.gain.linearRampToValueAtTime(targetGain, now + 0.01);
                 }
 
                 createVoice(frequency, velocity) {
@@ -2407,8 +2445,8 @@
                     gainA.connect(envGain);
                     gainB.connect(envGain);
                     envGain.connect(velGain);
-                    // Connect to filter (which then goes to reverb/master)
-                    velGain.connect(this.filter);
+                    // Connect to voiceGain (which handles polyphony compensation)
+                    velGain.connect(this.voiceGain);
 
                     oscA.frequency.value = frequency;
                     oscB.frequency.value = frequency;
@@ -2458,6 +2496,9 @@
                     voice.oscB.stop(stopTime);
 
                     this.voices.delete(noteId);
+
+                    // Update voice gain compensation (voice is releasing so open up headroom)
+                    this.updateVoiceGain();
                 }
 
                 triggerAttack(gainNode) {
