@@ -840,62 +840,6 @@
             }
 
             /* ============================================================
-           KEYBOARD
-           ============================================================ */
-            #keyboard {
-                padding: 16px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-            }
-
-            .keyboard-row {
-                display: flex;
-                justify-content: center;
-                gap: 4px;
-            }
-
-            .key {
-                width: 48px;
-                height: 64px;
-                background: var(--bg);
-                border: 1px solid var(--border);
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-end;
-                align-items: center;
-                padding-bottom: 8px;
-                cursor: pointer;
-                user-select: none;
-                transition:
-                    background 0.05s,
-                    border-color 0.05s;
-            }
-
-            .key:hover {
-                border-color: var(--text-muted);
-            }
-
-            .key.active {
-                background: var(--text);
-                border-color: var(--text);
-            }
-
-            .key.active .key-label,
-            .key.active .key-note {
-                color: var(--bg);
-            }
-
-            .key-label {
-                font-size: 10px;
-                color: var(--text-muted);
-            }
-
-            .key-note {
-                font-size: 9px;
-                color: var(--text-muted);
-            }
-
-            /* ============================================================
            LOADING STATE
            ============================================================ */
             .loading-overlay {
@@ -1473,111 +1417,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Keyboard -->
-            <section id="keyboard">
-                <div class="keyboard-row">
-                    <div
-                        class="key"
-                        data-key="a"
-                        data-note="C4"
-                        data-freq="261.63"
-                    >
-                        <span class="key-label">A</span>
-                        <span class="key-note">C4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="s"
-                        data-note="D4"
-                        data-freq="293.66"
-                    >
-                        <span class="key-label">S</span>
-                        <span class="key-note">D4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="d"
-                        data-note="E4"
-                        data-freq="329.63"
-                    >
-                        <span class="key-label">D</span>
-                        <span class="key-note">E4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="f"
-                        data-note="F4"
-                        data-freq="349.23"
-                    >
-                        <span class="key-label">F</span>
-                        <span class="key-note">F4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="g"
-                        data-note="G4"
-                        data-freq="392.00"
-                    >
-                        <span class="key-label">G</span>
-                        <span class="key-note">G4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="h"
-                        data-note="A4"
-                        data-freq="440.00"
-                    >
-                        <span class="key-label">H</span>
-                        <span class="key-note">A4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="j"
-                        data-note="B4"
-                        data-freq="493.88"
-                    >
-                        <span class="key-label">J</span>
-                        <span class="key-note">B4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="k"
-                        data-note="C5"
-                        data-freq="523.25"
-                    >
-                        <span class="key-label">K</span>
-                        <span class="key-note">C5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="l"
-                        data-note="D5"
-                        data-freq="587.33"
-                    >
-                        <span class="key-label">L</span>
-                        <span class="key-note">D5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key=";"
-                        data-note="E5"
-                        data-freq="659.25"
-                    >
-                        <span class="key-label">;</span>
-                        <span class="key-note">E5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="'"
-                        data-note="F5"
-                        data-freq="698.46"
-                    >
-                        <span class="key-label">'</span>
-                        <span class="key-note">F5</span>
-                    </div>
-                </div>
-            </section>
 
             <!-- Status bar -->
             <footer id="status">
@@ -3277,30 +3116,12 @@
                     this.onNoteOn = onNoteOn;
                     this.onNoteOff = onNoteOff;
                     this.activeKeys = new Set();
-                    this.keyElements = document.querySelectorAll(".key");
                     this.keyMap = new Map();
-
-                    this.keyElements.forEach((el) => {
-                        const key = el.dataset.key;
-                        const freq = parseFloat(el.dataset.freq);
-                        this.keyMap.set(key, { element: el, frequency: freq });
-                    });
                 }
 
                 enable() {
                     document.addEventListener("keydown", this.handleKeyDown);
                     document.addEventListener("keyup", this.handleKeyUp);
-
-                    this.keyElements.forEach((el) => {
-                        el.addEventListener("mousedown", this.handleMouseDown);
-                        el.addEventListener("mouseup", this.handleMouseUp);
-                        el.addEventListener("mouseleave", this.handleMouseUp);
-                        el.addEventListener(
-                            "touchstart",
-                            this.handleTouchStart,
-                        );
-                        el.addEventListener("touchend", this.handleTouchEnd);
-                    });
                 }
 
                 handleKeyDown = (e) => {
@@ -3309,8 +3130,7 @@
                     const key = e.key.toLowerCase();
                     if (this.keyMap.has(key) && !this.activeKeys.has(key)) {
                         this.activeKeys.add(key);
-                        const { element, frequency } = this.keyMap.get(key);
-                        element.classList.add("active");
+                        const { frequency } = this.keyMap.get(key);
                         this.onNoteOn(`kb_${key}`, frequency, 0.8);
                     }
                 };
@@ -3319,33 +3139,8 @@
                     const key = e.key.toLowerCase();
                     if (this.keyMap.has(key)) {
                         this.activeKeys.delete(key);
-                        const { element } = this.keyMap.get(key);
-                        element.classList.remove("active");
                         this.onNoteOff(`kb_${key}`);
                     }
-                };
-
-                handleMouseDown = (e) => {
-                    const key = e.currentTarget.dataset.key;
-                    const freq = parseFloat(e.currentTarget.dataset.freq);
-                    e.currentTarget.classList.add("active");
-                    this.onNoteOn(`mouse_${key}`, freq, 0.8);
-                };
-
-                handleMouseUp = (e) => {
-                    const key = e.currentTarget.dataset.key;
-                    e.currentTarget.classList.remove("active");
-                    this.onNoteOff(`mouse_${key}`);
-                };
-
-                handleTouchStart = (e) => {
-                    e.preventDefault();
-                    this.handleMouseDown(e);
-                };
-
-                handleTouchEnd = (e) => {
-                    e.preventDefault();
-                    this.handleMouseUp(e);
                 };
             }
 
@@ -4565,34 +4360,19 @@
                         ";",
                         "'",
                     ];
-                    const keyElements = document.querySelectorAll(".key");
-
-                    keyElements.forEach((el, i) => {
-                        if (i < notes.length) {
-                            const note = notes[i];
-                            el.dataset.freq = note.frequency;
-                            el.dataset.note = note.note;
-                            el.querySelector(".key-note").textContent =
-                                note.note;
-                            el.style.display = "";
-                        } else {
-                            // Hide keys that don't have notes in this scale
-                            el.style.display = "none";
-                        }
-                    });
 
                     // Update keyboard input mapping
                     if (this.keyboard) {
                         this.keyboard.keyMap.clear();
-                        keyElements.forEach((el, i) => {
-                            if (i < notes.length) {
-                                const key = keys[i];
-                                this.keyboard.keyMap.set(key, {
-                                    element: el,
-                                    frequency: notes[i].frequency,
-                                });
-                            }
-                        });
+                        for (
+                            let i = 0;
+                            i < Math.min(keys.length, notes.length);
+                            i++
+                        ) {
+                            this.keyboard.keyMap.set(keys[i], {
+                                frequency: notes[i].frequency,
+                            });
+                        }
                     }
                 }
 
@@ -4780,7 +4560,11 @@
                     }
                 }
 
-                noteOn(noteId, frequency, velocity) {
+                async noteOn(noteId, frequency, velocity) {
+                    // Initialize audio on first interaction (browser requires user gesture)
+                    if (!this.audio.initialized) {
+                        await this.audio.initialize();
+                    }
                     // Update modulation system with velocity
                     this.modManager.setMidiVelocity(velocity);
                     this.audio.noteOn(noteId, frequency, velocity);
