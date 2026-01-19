@@ -543,6 +543,12 @@
                 font-size: 10px;
             }
 
+            .lfo-shape-select {
+                min-width: 58px;
+                max-width: 58px;
+                padding: 2px 4px;
+            }
+
             .column-subheader {
                 font-size: 9px;
                 text-transform: uppercase;
@@ -1036,8 +1042,6 @@
                     <option value="manual">Manual</option>
                     <option value="lfo1">LFO 1</option>
                     <option value="lfo2">LFO 2</option>
-                    <option value="snh">S&H</option>
-                    <option value="drift">Drift</option>
                     <option value="midi-wheel">Mod Wheel</option>
                     <option value="midi-velocity">Velocity</option>
                 </select>
@@ -1101,8 +1105,6 @@
                     <option value="manual">Off</option>
                     <option value="lfo1">LFO 1</option>
                     <option value="lfo2">LFO 2</option>
-                    <option value="snh">S&H</option>
-                    <option value="drift">Drift</option>
                     <option value="midi-wheel">Mod Wheel</option>
                     <option value="midi-velocity">Velocity</option>
                 </select>
@@ -1139,6 +1141,13 @@
                     <div class="column-header">Modulation</div>
                     <div class="column-param">
                         <label>LFO 1</label>
+                        <select id="lfo1-shape" class="lfo-shape-select" data-tooltip="LFO 1 Shape">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="snh">S&H</option>
+                            <option value="drift">Drift</option>
+                        </select>
                         <input
                             type="range"
                             id="lfo1-rate"
@@ -1154,6 +1163,13 @@
                     </div>
                     <div class="column-param">
                         <label>LFO 2</label>
+                        <select id="lfo2-shape" class="lfo-shape-select" data-tooltip="LFO 2 Shape">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="snh">S&H</option>
+                            <option value="drift">Drift</option>
+                        </select>
                         <input
                             type="range"
                             id="lfo2-rate"
@@ -3625,26 +3641,78 @@
             // MODULATION SYSTEM (LFOs, S&H, Drift, MIDI)
             // ============================================================
 
-            // Single LFO instance with independent rate
+            // LFO with multiple shape options (sine, triangle, square, snh, drift)
             class LFO {
                 constructor() {
                     this.rate = 1; // Hz
                     this.phase = 0;
+                    this.shape = "sine"; // sine, triangle, square, snh, drift
+
+                    // S&H state
+                    this.snhValue = 0.5;
+                    this.snhLastTick = 0;
+
+                    // Drift state
+                    this.driftValue = 0.5;
+                    this.driftTarget = 0.5;
+                    this.driftLastTick = 0;
                 }
 
                 setRate(hz) {
-                    this.rate = Math.max(0.1, hz);
+                    this.rate = Math.max(0.05, hz);
                 }
 
-                // Returns 0-1 value based on current phase
+                setShape(shape) {
+                    this.shape = shape;
+                }
+
+                // Returns 0-1 value based on current phase and shape
                 getValue() {
-                    return (Math.sin(this.phase) + 1) / 2;
+                    switch (this.shape) {
+                        case "sine":
+                            return (Math.sin(this.phase) + 1) / 2;
+                        case "triangle":
+                            // Convert phase to 0-1 range, then create triangle
+                            const t = this.phase / (Math.PI * 2);
+                            return t < 0.5 ? t * 2 : 2 - t * 2;
+                        case "square":
+                            return this.phase < Math.PI ? 1 : 0;
+                        case "snh":
+                            return this.snhValue;
+                        case "drift":
+                            return this.driftValue;
+                        default:
+                            return (Math.sin(this.phase) + 1) / 2;
+                    }
                 }
 
                 // Advance phase by deltaTime
                 tick(deltaTime) {
+                    // Update phase for oscillating shapes
                     this.phase += deltaTime * this.rate * Math.PI * 2;
                     if (this.phase > Math.PI * 2) this.phase -= Math.PI * 2;
+
+                    // Update S&H
+                    if (this.shape === "snh") {
+                        this.snhLastTick += deltaTime;
+                        const snhInterval = 1 / this.rate;
+                        if (this.snhLastTick >= snhInterval) {
+                            this.snhLastTick = 0;
+                            this.snhValue = Math.random();
+                        }
+                    }
+
+                    // Update Drift
+                    if (this.shape === "drift") {
+                        this.driftLastTick += deltaTime;
+                        const driftInterval = 1 / this.rate;
+                        if (this.driftLastTick >= driftInterval) {
+                            this.driftLastTick = 0;
+                            this.driftTarget = Math.random();
+                        }
+                        const smoothing = 1 - Math.exp(-deltaTime * this.rate * 3);
+                        this.driftValue += (this.driftTarget - this.driftValue) * smoothing;
+                    }
                 }
             }
 
@@ -3653,17 +3721,6 @@
                 constructor() {
                     this.lfo1 = new LFO();
                     this.lfo2 = new LFO();
-
-                    // S&H state
-                    this.snhRate = 1;
-                    this.snhValue = 0.5;
-                    this.snhLastTick = 0;
-
-                    // Drift state
-                    this.driftRate = 1;
-                    this.driftValue = 0.5;
-                    this.driftTarget = 0.5;
-                    this.driftLastTick = 0;
 
                     // MIDI values
                     this.midiWheelValue = 0.5;
@@ -3687,11 +3744,7 @@
                 // Check if we need to run the animation loop
                 checkRunning() {
                     const needsAnimation = this.destinations.some(
-                        (d) =>
-                            d.mode === "lfo1" ||
-                            d.mode === "lfo2" ||
-                            d.mode === "snh" ||
-                            d.mode === "drift",
+                        (d) => d.mode === "lfo1" || d.mode === "lfo2",
                     );
 
                     if (needsAnimation && !this.running) {
@@ -3723,29 +3776,9 @@
                     const deltaTime = (now - this.lastTime) / 1000;
                     this.lastTime = now;
 
-                    // Update LFOs
+                    // Update LFOs (they handle their own shape logic including S&H and Drift)
                     this.lfo1.tick(deltaTime);
                     this.lfo2.tick(deltaTime);
-
-                    // Update S&H
-                    this.snhLastTick += deltaTime;
-                    const snhInterval = 1 / this.snhRate;
-                    if (this.snhLastTick >= snhInterval) {
-                        this.snhLastTick = 0;
-                        this.snhValue = Math.random();
-                    }
-
-                    // Update Drift
-                    this.driftLastTick += deltaTime;
-                    const driftInterval = 1 / this.driftRate;
-                    if (this.driftLastTick >= driftInterval) {
-                        this.driftLastTick = 0;
-                        this.driftTarget = Math.random();
-                    }
-                    const smoothing =
-                        1 - Math.exp(-deltaTime * this.driftRate * 3);
-                    this.driftValue +=
-                        (this.driftTarget - this.driftValue) * smoothing;
 
                     // Update all destinations
                     this.destinations.forEach((dest) => {
@@ -3765,10 +3798,6 @@
                             return this.lfo1.getValue();
                         case "lfo2":
                             return this.lfo2.getValue();
-                        case "snh":
-                            return this.snhValue;
-                        case "drift":
-                            return this.driftValue;
                         case "midi-wheel":
                             return this.midiWheelValue;
                         case "midi-velocity":
@@ -3786,12 +3815,12 @@
                     this.lfo2.setRate(hz);
                 }
 
-                setSnhRate(hz) {
-                    this.snhRate = Math.max(0.1, hz);
+                setLfo1Shape(shape) {
+                    this.lfo1.setShape(shape);
                 }
 
-                setDriftRate(hz) {
-                    this.driftRate = Math.max(0.1, hz);
+                setLfo2Shape(shape) {
+                    this.lfo2.setShape(shape);
                 }
 
                 setMidiWheel(value) {
@@ -4083,6 +4112,18 @@
                             document.getElementById(
                                 "lfo2-rate-value",
                             ).textContent = hz.toFixed(hz < 1 ? 2 : 1);
+                        });
+
+                    // LFO shape selectors
+                    document
+                        .getElementById("lfo1-shape")
+                        .addEventListener("change", (e) => {
+                            this.modManager.setLfo1Shape(e.target.value);
+                        });
+                    document
+                        .getElementById("lfo2-shape")
+                        .addEventListener("change", (e) => {
+                            this.modManager.setLfo2Shape(e.target.value);
                         });
 
                     // Filter modulation source selector
