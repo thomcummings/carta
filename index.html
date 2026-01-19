@@ -386,6 +386,33 @@
                 border-color: var(--text);
             }
 
+            .terrain-intensity {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                padding: 4px 8px;
+                font-size: 9px;
+                color: var(--text-muted);
+            }
+
+            .terrain-intensity label {
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                white-space: nowrap;
+            }
+
+            .terrain-intensity input[type="range"] {
+                width: 60px;
+                height: 3px;
+            }
+
+            .terrain-intensity .intensity-value {
+                min-width: 28px;
+                text-align: right;
+            }
+
             /* ============================================================
            CONTROLS SECTION
            ============================================================ */
@@ -961,6 +988,23 @@
                         </div>
                         <canvas id="terrain-canvas"></canvas>
                         <div class="terrain-controls">
+                            <div class="terrain-intensity">
+                                <label>Intensity</label>
+                                <input
+                                    type="range"
+                                    id="terrain-intensity"
+                                    min="0"
+                                    max="100"
+                                    step="1"
+                                    value="100"
+                                    data-tooltip="Blend between flat and full terrain waveform"
+                                />
+                                <span
+                                    class="intensity-value"
+                                    id="terrain-intensity-value"
+                                    >100%</span
+                                >
+                            </div>
                             <button id="reset-view" data-tooltip="Reset view">
                                 <svg
                                     width="14"
@@ -1831,8 +1875,10 @@
 
                 /**
                  * Normalize elevation data to wavetable format.
+                 * @param {number[]} elevations - Raw elevation data
+                 * @param {number} intensity - 0-100, blends between flat (0) and full terrain (100)
                  */
-                normalizeToWavetable(elevations) {
+                normalizeToWavetable(elevations, intensity = 100) {
                     const { samplesPerWaveform, numberOfFrames } =
                         CONFIG.wavetable;
 
@@ -1858,6 +1904,9 @@
                     const range = globalMax - globalMin;
                     const midpoint = (globalMax + globalMin) / 2;
 
+                    // Intensity factor: 0 = flat line, 1 = full terrain
+                    const intensityFactor = intensity / 100;
+
                     const frames = [];
                     for (let f = 0; f < numberOfFrames; f++) {
                         const frame = new Float32Array(samplesPerWaveform);
@@ -1865,22 +1914,26 @@
 
                         for (let s = 0; s < samplesPerWaveform; s++) {
                             const rawValue = elevations[frameStart + s] ?? 0;
-                            frame[s] =
+                            // Full terrain value (normalized -1 to 1)
+                            const terrainValue =
                                 range > 0
                                     ? (rawValue - midpoint) / (range / 2)
                                     : 0;
+                            // Blend between flat (0) and terrain based on intensity
+                            frame[s] = terrainValue * intensityFactor;
                         }
 
                         frames.push(frame);
                     }
 
                     console.log(
-                        `Normalized wavetable: ${frames.length} frames, elevation ${Math.round(globalMin)}m - ${Math.round(globalMax)}m`,
+                        `Normalized wavetable: ${frames.length} frames, elevation ${Math.round(globalMin)}m - ${Math.round(globalMax)}m, intensity ${intensity}%`,
                     );
 
                     return {
                         frames,
                         metadata: { globalMin, globalMax, range },
+                        rawElevations: elevations, // Store for re-processing with different intensity
                     };
                 }
 
@@ -2633,12 +2686,12 @@
                     this.updateColors();
                 }
 
-                setFrames(frames) {
+                setFrames(frames, resetCamera = true) {
                     console.log(
                         `Terrain3D.setFrames: received ${frames.length} frames`,
                     );
                     this.frames = frames;
-                    this.buildTerrain();
+                    this.buildTerrain(resetCamera);
                 }
 
                 setMorphPosition(position) {
@@ -2646,7 +2699,7 @@
                     this.updateMorphLine();
                 }
 
-                buildTerrain() {
+                buildTerrain(resetCamera = true) {
                     console.log("Terrain3D.buildTerrain: starting rebuild...");
 
                     // Remove old mesh
@@ -2763,8 +2816,10 @@
                     // Create morph line
                     this.createMorphLine();
 
-                    // Reset camera
-                    this.resetView();
+                    // Reset camera (optionally)
+                    if (resetCamera) {
+                        this.resetView();
+                    }
                 }
 
                 createMorphLine() {
@@ -3889,6 +3944,8 @@
 
                     this.currentLocation = null;
                     this.wavetableData = null;
+                    this.rawElevations = null; // Store raw data for intensity re-processing
+                    this.terrainIntensity = 100;
                     this.isLightMode = window.matchMedia(
                         "(prefers-color-scheme: light)",
                     ).matches;
@@ -4361,6 +4418,19 @@
                             this.terrain3D.resetView();
                         });
 
+                    // Terrain intensity slider
+                    const intensitySlider =
+                        document.getElementById("terrain-intensity");
+                    const intensityValue = document.getElementById(
+                        "terrain-intensity-value",
+                    );
+                    intensitySlider.addEventListener("input", (e) => {
+                        const value = parseInt(e.target.value);
+                        intensityValue.textContent = `${value}%`;
+                        this.terrainIntensity = value;
+                        this.reprocessTerrain();
+                    });
+
                     // My location button
                     document
                         .getElementById("location-btn")
@@ -4726,6 +4796,29 @@
                     }
 
                     this.setStatus(`Loaded preset: ${preset.name}`);
+                reprocessTerrain() {
+                    if (!this.rawElevations) {
+                        return; // No terrain loaded yet
+                    }
+
+                    // Re-normalize with new intensity
+                    const result = this.terrain.normalizeToWavetable(
+                        this.rawElevations,
+                        this.terrainIntensity,
+                    );
+
+                    this.wavetableData = result;
+
+                    // Update audio engine
+                    this.audio.loadWavetable(result.frames);
+
+                    // Update visualizations (preserve camera angle)
+                    this.waveformDisplay.setFrames(result.frames);
+                    this.terrain3D.setFrames(result.frames, false);
+
+                    console.log(
+                        `Reprocessed terrain at ${this.terrainIntensity}% intensity`,
+                    );
                 }
 
                 updateADSR() {
@@ -4776,6 +4869,9 @@
                             "Terrain data received:",
                             this.wavetableData,
                         );
+
+                        // Store raw elevations for intensity re-processing
+                        this.rawElevations = this.wavetableData.rawElevations;
 
                         // Load into audio engine
                         this.audio.loadWavetable(this.wavetableData.frames);
