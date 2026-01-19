@@ -1995,6 +1995,9 @@
                     this.modOscs = [];
                     this.modGains = [];
                     this.saturators = [];
+                    this.satLowpasses = [];
+                    this.satDryGains = [];
+                    this.satWetGains = [];
 
                     this.buildGraph();
                 }
@@ -2095,11 +2098,27 @@
                     damper.Q.value = 0.5;
                     this.dampFilters.push(damper);
 
-                    // Saturator in feedback loop (tape warmth)
+                    // Tape warmth: lowpass -> saturator with dry/wet blend
+                    // Pre-saturation lowpass (tape doesn't saturate highs)
+                    const satLowpass = ctx.createBiquadFilter();
+                    satLowpass.type = "lowpass";
+                    satLowpass.frequency.value = 3000;
+                    satLowpass.Q.value = 0.5;
+                    this.satLowpasses.push(satLowpass);
+
+                    // Saturator with gentle tanh curve
                     const saturator = ctx.createWaveShaper();
                     saturator.curve = this.createSaturationCurve(this.saturation);
                     saturator.oversample = "2x";
                     this.saturators.push(saturator);
+
+                    // Dry/wet blend for subtle effect
+                    const satDryGain = ctx.createGain();
+                    const satWetGain = ctx.createGain();
+                    satDryGain.gain.value = 1.0;
+                    satWetGain.gain.value = 0.0;
+                    this.satDryGains.push(satDryGain);
+                    this.satWetGains.push(satWetGain);
 
                     // LFO for delay time modulation (Greyhole-style shimmer)
                     const lfo = ctx.createOscillator();
@@ -2113,15 +2132,22 @@
                     this.modOscs.push(lfo);
                     this.modGains.push({ gain: lfoGain, baseDelay: delayTime });
 
-                    // Comb filter topology with saturator in feedback path
+                    // Comb filter topology with parallel dry/wet saturation
                     input.connect(delay);
                     delay.connect(output);
                     delay.connect(damper);
-                    damper.connect(saturator);
-                    saturator.connect(feedbackGain);
+                    // Dry path (clean signal)
+                    damper.connect(satDryGain);
+                    satDryGain.connect(feedbackGain);
+                    // Wet path (lowpass -> saturator)
+                    damper.connect(satLowpass);
+                    satLowpass.connect(saturator);
+                    saturator.connect(satWetGain);
+                    satWetGain.connect(feedbackGain);
+                    // Back into delay
                     feedbackGain.connect(delay);
 
-                    return { input, output, delay, feedbackGain, damper, saturator };
+                    return { input, output, delay, feedbackGain, damper, saturator, satLowpass, satDryGain, satWetGain };
                 }
 
                 createAllpass(delayTime, feedback) {
@@ -2235,12 +2261,12 @@
                 }
 
                 createSaturationCurve(amount) {
-                    // Attempt to create tanh-based soft saturation curve
-                    // amount 0-1: 0 = linear (clean), 1 = full saturation (warm)
+                    // Gentle tanh-based soft saturation curve for tape warmth
+                    // amount 0-1: 0 = linear (clean), 1 = subtle warmth
                     const samples = 256;
                     const curve = new Float32Array(samples);
-                    // Drive factor: 1 = linear, up to 4 = heavy saturation
-                    const drive = 1 + amount * 3;
+                    // Gentle drive: 1 = linear, up to 1.8 = subtle saturation
+                    const drive = 1 + amount * 0.8;
                     for (let i = 0; i < samples; i++) {
                         const x = (i / (samples - 1)) * 2 - 1;
                         // Tanh soft clip - naturally limits to [-1, 1]
@@ -2252,9 +2278,22 @@
                 setSaturation(value) {
                     // value 0-1: 0 = clean, 1 = warm/saturated
                     this.saturation = value;
+                    const time = this.audioCtx.currentTime;
+
+                    // Update saturation curve
                     const curve = this.createSaturationCurve(value);
                     this.saturators.forEach((saturator) => {
                         saturator.curve = curve;
+                    });
+
+                    // Update dry/wet blend: at max warmth, 70% dry + 30% saturated
+                    const wetAmount = value * 0.3;
+                    const dryAmount = 1.0 - wetAmount;
+                    this.satDryGains.forEach((gain) => {
+                        gain.gain.setValueAtTime(dryAmount, time);
+                    });
+                    this.satWetGains.forEach((gain) => {
+                        gain.gain.setValueAtTime(wetAmount, time);
                     });
                 }
             }
