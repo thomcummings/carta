@@ -805,6 +805,11 @@
                 opacity: 1;
             }
 
+            /* Position range input tooltips over the thumb */
+            input[type="range"][data-tooltip]::after {
+                left: var(--thumb-pos, 50%);
+            }
+
             /* ============================================================
            STATUS BAR
            ============================================================ */
@@ -4677,12 +4682,32 @@
             }
 
             // ============================================================
+            // TOOLTIP THUMB POSITION
+            // ============================================================
+            function updateThumbPosition(input) {
+                const min = parseFloat(input.min) || 0;
+                const max = parseFloat(input.max) || 100;
+                const value = parseFloat(input.value);
+                const percent = ((value - min) / (max - min)) * 100;
+                input.style.setProperty('--thumb-pos', `${percent}%`);
+            }
+
+            function initTooltipPositions() {
+                const sliders = document.querySelectorAll('input[type="range"][data-tooltip]');
+                sliders.forEach(slider => {
+                    updateThumbPosition(slider);
+                    slider.addEventListener('input', () => updateThumbPosition(slider));
+                });
+            }
+
+            // ============================================================
             // INITIALIZATION
             // ============================================================
             const app = new App();
-            document.addEventListener("DOMContentLoaded", () =>
-                app.initialize(),
-            );
+            document.addEventListener("DOMContentLoaded", () => {
+                app.initialize();
+                initTooltipPositions();
+            });
         </script>
     </body>
 </html>
