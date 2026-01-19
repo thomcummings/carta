@@ -2656,12 +2656,12 @@
                     this.updateColors();
                 }
 
-                setFrames(frames) {
+                setFrames(frames, resetCamera = true) {
                     console.log(
                         `Terrain3D.setFrames: received ${frames.length} frames`,
                     );
                     this.frames = frames;
-                    this.buildTerrain();
+                    this.buildTerrain(resetCamera);
                 }
 
                 setMorphPosition(position) {
@@ -2669,7 +2669,7 @@
                     this.updateMorphLine();
                 }
 
-                buildTerrain() {
+                buildTerrain(resetCamera = true) {
                     console.log("Terrain3D.buildTerrain: starting rebuild...");
 
                     // Remove old mesh
@@ -2786,8 +2786,10 @@
                     // Create morph line
                     this.createMorphLine();
 
-                    // Reset camera
-                    this.resetView();
+                    // Reset camera (optionally)
+                    if (resetCamera) {
+                        this.resetView();
+                    }
                 }
 
                 createMorphLine() {
@@ -4521,9 +4523,9 @@
                     // Update audio engine
                     this.audio.loadWavetable(result.frames);
 
-                    // Update visualizations
+                    // Update visualizations (preserve camera angle)
                     this.waveformDisplay.setFrames(result.frames);
-                    this.terrain3D.setFrames(result.frames);
+                    this.terrain3D.setFrames(result.frames, false);
 
                     console.log(
                         `Reprocessed terrain at ${this.terrainIntensity}% intensity`,
