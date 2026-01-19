@@ -373,179 +373,165 @@
                 gap: 12px;
             }
 
-            /* Scale controls row */
-            #scale-controls {
+            /* ============================================================
+               PARAM ROW (Morph, Filter, ADSR)
+               ============================================================ */
+            .param-row {
                 display: flex;
+                align-items: center;
                 gap: 12px;
-                padding: 12px;
+                padding: 10px 12px;
                 background: var(--surface);
                 border: 1px solid var(--border);
             }
 
-            #scale-controls .control-group {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            #scale-controls label {
+            .param-row .row-label {
                 font-size: 10px;
+                font-weight: 500;
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
-                color: var(--text-muted);
-                white-space: nowrap;
+                color: var(--text);
+                min-width: 50px;
             }
 
-            /* Morph slider */
-            #morph-control {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 12px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-            }
-
-            #morph-control label {
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--text-muted);
-                white-space: nowrap;
-            }
-
-            #morph-control input[type="range"] {
+            .param-row .main-slider {
                 flex: 1;
+                min-width: 100px;
             }
 
-            #morph-control .morph-value {
+            .param-row .param-value {
                 font-size: 10px;
                 color: var(--text-muted);
-                min-width: 40px;
+                min-width: 45px;
                 text-align: right;
+                font-family: "JetBrains Mono", monospace;
             }
 
-            /* Morph modulation section */
-            #morph-control .mod-section {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-left: 12px;
-                padding-left: 12px;
-                border-left: 1px solid var(--border);
-            }
-
-            #morph-control .mod-section label {
+            .param-row .mod-select {
                 font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--text-muted);
+                min-width: 80px;
             }
 
-            #morph-control .mod-rate {
-                width: 60px;
-            }
-
-            #morph-control .mod-rate-value {
-                font-size: 10px;
-                color: var(--text-muted);
-                min-width: 30px;
-            }
-
-            #morph-control .mod-range-group {
+            .param-row .mini-param {
                 display: flex;
                 align-items: center;
                 gap: 4px;
             }
 
-            #morph-control .mod-range-group label {
+            .param-row .mini-param label {
                 font-size: 9px;
                 text-transform: uppercase;
                 color: var(--text-muted);
             }
 
-            #morph-control .mod-range-group input[type="range"] {
+            .param-row .mini-param input[type="range"] {
                 width: 50px;
             }
 
-            /* LFO Controls */
-            #lfo-controls {
-                display: flex;
+            .param-row .mini-value {
+                font-size: 9px;
+                color: var(--text-muted);
+                min-width: 28px;
+                font-family: "JetBrains Mono", monospace;
+            }
+
+            .param-row .row-divider {
+                width: 1px;
+                height: 20px;
+                background: var(--border);
+                margin: 0 4px;
+            }
+
+            /* ADSR row specific */
+            #adsr-row {
                 gap: 16px;
-                padding: 12px;
-                background: var(--surface);
+            }
+
+            #adsr-row .mini-param {
+                flex: 1;
+            }
+
+            #adsr-row .mini-param input[type="range"] {
+                flex: 1;
+                width: auto;
+            }
+
+            /* ============================================================
+               THREE COLUMN SECTION
+               ============================================================ */
+            #three-columns {
+                display: grid;
+                grid-template-columns: 1fr 1.5fr 1fr;
+                gap: 1px;
+                background: var(--border);
                 border: 1px solid var(--border);
             }
 
-            .lfo-section {
+            .column {
+                background: var(--surface);
+                padding: 10px 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .column-header {
+                font-size: 10px;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text);
+                padding-bottom: 6px;
+                border-bottom: 1px solid var(--border);
                 display: flex;
                 align-items: center;
                 gap: 8px;
             }
 
-            .lfo-section label {
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--text-muted);
-                min-width: 40px;
-            }
-
-            .lfo-section input[type="range"] {
-                width: 80px;
-            }
-
-            .lfo-rate-value {
-                font-size: 10px;
-                color: var(--text-muted);
-                min-width: 30px;
-            }
-
-            /* Filter, Reverb & Generative controls - single row */
-            #fx-controls {
-                display: flex;
-                gap: 12px;
-                padding: 12px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-                flex-wrap: wrap;
-            }
-
-            .fx-section {
+            .column-param {
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                padding-right: 16px;
-                border-right: 1px solid var(--border);
+                gap: 8px;
             }
 
-            .fx-section:last-child {
-                border-right: none;
-                padding-right: 0;
-            }
-
-            .fx-section .section-title {
-                font-size: 10px;
+            .column-param label {
+                font-size: 9px;
                 text-transform: uppercase;
-                letter-spacing: 0.1em;
+                letter-spacing: 0.05em;
                 color: var(--text-muted);
-                white-space: nowrap;
-                display: flex;
-                align-items: center;
-                gap: 6px;
+                min-width: 45px;
             }
 
-            .fx-section .section-title input[type="checkbox"] {
-                accent-color: var(--text);
+            .column-param input[type="range"] {
+                flex: 1;
+                min-width: 50px;
             }
 
+            .column-param .param-value {
+                font-size: 9px;
+                color: var(--text-muted);
+                min-width: 35px;
+                text-align: right;
+                font-family: "JetBrains Mono", monospace;
+            }
+
+            .column-param select {
+                font-size: 10px;
+            }
+
+            .column-param .range-dash {
+                font-size: 10px;
+                color: var(--text-muted);
+            }
+
+            /* Play button */
             .play-btn {
                 background: none;
                 border: 1px solid var(--border);
                 color: var(--text);
-                width: 24px;
-                height: 24px;
-                padding: 4px;
+                width: 20px;
+                height: 20px;
+                padding: 3px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
@@ -563,59 +549,8 @@
             }
 
             .play-btn svg {
-                width: 12px;
-                height: 12px;
-            }
-
-            .fx-param {
-                display: flex;
-                flex-direction: column;
-                gap: 2px;
-                min-width: 60px;
-            }
-
-            .fx-param label {
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--text-muted);
-            }
-
-            .fx-param .value {
-                font-size: 9px;
-                color: var(--text);
-            }
-
-            .fx-param input[type="range"] {
-                width: 60px;
-            }
-
-            /* ADSR controls */
-            #adsr-controls {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 12px;
-            }
-
-            .adsr-param {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                padding: 12px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-            }
-
-            .adsr-param label {
-                font-size: 10px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--text-muted);
-            }
-
-            .adsr-param .value {
-                font-size: 10px;
-                color: var(--text);
+                width: 10px;
+                height: 10px;
             }
 
             /* ============================================================
@@ -777,63 +712,6 @@
             }
 
             /* ============================================================
-           KEYBOARD SECTION
-           ============================================================ */
-            #keyboard {
-                padding: 16px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-            }
-
-            .keyboard-row {
-                display: flex;
-                justify-content: center;
-                gap: 4px;
-            }
-
-            .key {
-                width: 48px;
-                height: 64px;
-                background: var(--bg);
-                border: 1px solid var(--border);
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-end;
-                align-items: center;
-                padding-bottom: 8px;
-                cursor: pointer;
-                user-select: none;
-                transition:
-                    background 0.05s,
-                    border-color 0.05s;
-            }
-
-            .key:hover {
-                border-color: var(--text-muted);
-            }
-
-            .key.active {
-                background: var(--text);
-                border-color: var(--text);
-            }
-
-            .key.active .key-label,
-            .key.active .key-note {
-                color: var(--bg);
-            }
-
-            .key-label {
-                font-size: 10px;
-                color: var(--text-muted);
-            }
-
-            .key-note {
-                font-size: 9px;
-                color: var(--text-muted);
-                margin-top: 2px;
-            }
-
-            /* ============================================================
            STATUS BAR
            ============================================================ */
             #status {
@@ -866,6 +744,13 @@
 
             .light-mode .midi-indicator.connected {
                 background: #009900;
+            }
+
+            .keyboard-hint {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 9px;
+                color: var(--text-muted);
+                letter-spacing: 0.5px;
             }
 
             /* ============================================================
@@ -1015,217 +900,158 @@
                     </div>
                 </section>
             </main>
-
-            <!-- Scale controls -->
-            <div id="scale-controls">
-                <div class="control-group">
-                    <label for="root-note">Root</label>
-                    <select id="root-note">
-                        <option value="C">C</option>
-                        <option value="C#">C#</option>
-                        <option value="D">D</option>
-                        <option value="D#">D#</option>
-                        <option value="E">E</option>
-                        <option value="F">F</option>
-                        <option value="F#">F#</option>
-                        <option value="G">G</option>
-                        <option value="G#">G#</option>
-                        <option value="A">A</option>
-                        <option value="A#">A#</option>
-                        <option value="B">B</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="scale-type">Scale</label>
-                    <select id="scale-type">
-                        <option value="chromatic">Chromatic</option>
-                        <option value="major">Major</option>
-                        <option value="minor">Minor</option>
-                        <option value="pentatonic">Pentatonic</option>
-                        <option value="blues">Blues</option>
-                        <option value="dorian">Dorian</option>
-                        <option value="phrygian">Phrygian</option>
-                        <option value="lydian">Lydian</option>
-                        <option value="mixolydian">Mixolydian</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Morph control -->
-            <div id="morph-control">
-                <label for="morph-slider">Morph N↔S</label>
+            <!-- Morph Row -->
+            <div class="param-row" id="morph-row">
+                <label class="row-label">Morph</label>
                 <input
                     type="range"
                     id="morph-slider"
+                    class="main-slider"
                     min="0"
                     max="1"
                     step="0.001"
                     value="0.5"
                 />
-                <span class="morph-value" id="morph-value">0.50</span>
-                <div class="mod-section">
-                    <label for="morph-mod-source">Mod</label>
-                    <select id="morph-mod-source">
-                        <option value="manual">Manual</option>
-                        <option value="lfo1">LFO 1</option>
-                        <option value="lfo2">LFO 2</option>
-                        <option value="snh">S&H</option>
-                        <option value="drift">Drift</option>
-                        <option value="midi-wheel">Mod Wheel</option>
-                        <option value="midi-velocity">Velocity</option>
-                    </select>
-                    <div class="mod-range-group">
-                        <label>Rng</label>
-                        <input
-                            type="range"
-                            id="morph-mod-range"
-                            min="0.01"
-                            max="1"
-                            step="0.01"
-                            value="1"
-                            data-tooltip="Range"
-                        />
-                    </div>
-                    <div class="mod-range-group">
-                        <label>Ofs</label>
-                        <input
-                            type="range"
-                            id="morph-mod-offset"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value="0"
-                            data-tooltip="Offset"
-                        />
-                    </div>
+                <span class="param-value" id="morph-value">0.50</span>
+                <select id="morph-mod-source" class="mod-select">
+                    <option value="manual">Manual</option>
+                    <option value="lfo1">LFO 1</option>
+                    <option value="lfo2">LFO 2</option>
+                    <option value="snh">S&H</option>
+                    <option value="drift">Drift</option>
+                    <option value="midi-wheel">Mod Wheel</option>
+                    <option value="midi-velocity">Velocity</option>
+                </select>
+                <div class="mini-param">
+                    <label>Rng</label>
+                    <input
+                        type="range"
+                        id="morph-mod-range"
+                        min="0.01"
+                        max="1"
+                        step="0.01"
+                        value="1"
+                        data-tooltip="Modulation Range"
+                    />
+                </div>
+                <div class="mini-param">
+                    <label>Ofs</label>
+                    <input
+                        type="range"
+                        id="morph-mod-offset"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="0"
+                        data-tooltip="Modulation Offset"
+                    />
                 </div>
             </div>
 
-            <!-- LFO Controls -->
-            <div id="lfo-controls">
-                <div class="lfo-section">
-                    <label>LFO 1</label>
+            <!-- Filter Row -->
+            <div class="param-row" id="filter-row">
+                <label class="row-label">Filter</label>
+                <input
+                    type="range"
+                    id="filter-cutoff"
+                    class="main-slider"
+                    min="20"
+                    max="20000"
+                    step="1"
+                    value="20000"
+                />
+                <span class="param-value" id="filter-cutoff-value">20kHz</span>
+                <select id="filter-mod-source" class="mod-select">
+                    <option value="manual">Off</option>
+                    <option value="lfo1">LFO 1</option>
+                    <option value="lfo2">LFO 2</option>
+                    <option value="snh">S&H</option>
+                    <option value="drift">Drift</option>
+                    <option value="midi-wheel">Mod Wheel</option>
+                    <option value="midi-velocity">Velocity</option>
+                </select>
+                <div class="mini-param">
+                    <label>Rng</label>
                     <input
                         type="range"
-                        id="lfo1-rate"
-                        min="0.1"
-                        max="10"
-                        step="0.1"
-                        value="1"
-                        data-tooltip="LFO 1 Rate"
+                        id="filter-mod-range"
+                        min="0.01"
+                        max="1"
+                        step="0.01"
+                        value="0.5"
+                        data-tooltip="Modulation Range"
                     />
-                    <span class="lfo-rate-value" id="lfo1-rate-value">1.0</span>
                 </div>
-                <div class="lfo-section">
-                    <label>LFO 2</label>
+                <div class="mini-param">
+                    <label>Ofs</label>
                     <input
                         type="range"
-                        id="lfo2-rate"
-                        min="0.1"
-                        max="10"
-                        step="0.1"
-                        value="1"
-                        data-tooltip="LFO 2 Rate"
+                        id="filter-mod-offset"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="0"
+                        data-tooltip="Modulation Offset"
                     />
-                    <span class="lfo-rate-value" id="lfo2-rate-value">1.0</span>
+                </div>
+                <div class="row-divider"></div>
+                <div class="mini-param">
+                    <label>Res</label>
+                    <input
+                        type="range"
+                        id="filter-resonance"
+                        min="0"
+                        max="20"
+                        step="0.1"
+                        value="0"
+                        data-tooltip="Resonance"
+                    />
+                    <span class="mini-value" id="filter-resonance-value"
+                        >0.0</span
+                    >
                 </div>
             </div>
 
-            <!-- Filter, Reverb & Autoplay -->
-            <div id="fx-controls">
-                <div class="fx-section">
-                    <span class="section-title">Filter</span>
-                    <div class="fx-param">
-                        <label>Cut</label>
+            <!-- Three Column Section -->
+            <div id="three-columns">
+                <!-- Modulation Column -->
+                <div class="column" id="mod-column">
+                    <div class="column-header">Modulation</div>
+                    <div class="column-param">
+                        <label>LFO 1</label>
                         <input
                             type="range"
-                            id="filter-cutoff"
-                            min="20"
-                            max="20000"
-                            step="1"
-                            value="20000"
-                        />
-                        <span class="value" id="filter-cutoff-value"
-                            >20kHz</span
-                        >
-                    </div>
-                    <div class="fx-param">
-                        <label>Res</label>
-                        <input
-                            type="range"
-                            id="filter-resonance"
-                            min="0"
-                            max="20"
-                            step="0.1"
-                            value="0"
-                        />
-                        <span class="value" id="filter-resonance-value"
-                            >0.0</span
-                        >
-                    </div>
-                    <div class="fx-param">
-                        <label>Mod</label>
-                        <select id="filter-mod-source">
-                            <option value="manual">Off</option>
-                            <option value="lfo1">LFO 1</option>
-                            <option value="lfo2">LFO 2</option>
-                            <option value="snh">S&H</option>
-                            <option value="drift">Drift</option>
-                            <option value="midi-wheel">Mod Wheel</option>
-                            <option value="midi-velocity">Velocity</option>
-                        </select>
-                        <input
-                            type="range"
-                            id="filter-mod-range"
-                            min="0.01"
-                            max="1"
-                            step="0.01"
-                            value="0.5"
-                            data-tooltip="Mod Range"
-                        />
-                    </div>
-                </div>
-                <div class="fx-section">
-                    <span class="section-title">Reverb</span>
-                    <div class="fx-param">
-                        <label>Mix</label>
-                        <input
-                            type="range"
-                            id="reverb-mix"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value="0"
-                        />
-                        <span class="value" id="reverb-mix-value">0%</span>
-                    </div>
-                    <div class="fx-param">
-                        <label>Decay</label>
-                        <input
-                            type="range"
-                            id="reverb-decay"
+                            id="lfo1-rate"
                             min="0.1"
-                            max="5"
+                            max="10"
                             step="0.1"
-                            value="2"
+                            value="1"
+                            data-tooltip="LFO 1 Rate (Hz)"
                         />
-                        <span class="value" id="reverb-decay-value">2.0s</span>
+                        <span class="param-value" id="lfo1-rate-value"
+                            >1.0</span
+                        >
                     </div>
-                    <div class="fx-param">
-                        <label>Damp</label>
+                    <div class="column-param">
+                        <label>LFO 2</label>
                         <input
                             type="range"
-                            id="reverb-damping"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value="0.4"
-                            data-tooltip="High frequency damping"
+                            id="lfo2-rate"
+                            min="0.1"
+                            max="10"
+                            step="0.1"
+                            value="1"
+                            data-tooltip="LFO 2 Rate (Hz)"
                         />
+                        <span class="param-value" id="lfo2-rate-value"
+                            >1.0</span
+                        >
                     </div>
                 </div>
-                <div class="fx-section">
-                    <div class="section-title">
+
+                <!-- Sequencer Column -->
+                <div class="column" id="seq-column">
+                    <div class="column-header">
                         <button
                             id="gen-play-btn"
                             class="play-btn"
@@ -1239,8 +1065,38 @@
                                 <polygon points="5,3 19,12 5,21" />
                             </svg>
                         </button>
+                        <span>Sequencer</span>
                     </div>
-                    <div class="fx-param">
+                    <div class="column-param">
+                        <label>Root</label>
+                        <select id="root-note">
+                            <option value="C">C</option>
+                            <option value="C#">C#</option>
+                            <option value="D">D</option>
+                            <option value="D#">D#</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="F#">F#</option>
+                            <option value="G">G</option>
+                            <option value="G#">G#</option>
+                            <option value="A">A</option>
+                            <option value="A#">A#</option>
+                            <option value="B">B</option>
+                        </select>
+                        <label>Scale</label>
+                        <select id="scale-type">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                        </select>
+                    </div>
+                    <div class="column-param">
                         <label>BPM</label>
                         <input
                             type="range"
@@ -1250,9 +1106,9 @@
                             step="1"
                             value="120"
                         />
-                        <span class="value" id="gen-bpm-value">120</span>
+                        <span class="param-value" id="gen-bpm-value">120</span>
                     </div>
-                    <div class="fx-param">
+                    <div class="column-param">
                         <label>Prob</label>
                         <input
                             type="range"
@@ -1262,11 +1118,11 @@
                             step="0.05"
                             value="0.7"
                         />
-                        <span class="value" id="gen-probability-value"
+                        <span class="param-value" id="gen-probability-value"
                             >70%</span
                         >
                     </div>
-                    <div class="fx-param">
+                    <div class="column-param">
                         <label>Oct</label>
                         <select id="gen-octave-low">
                             <option value="2">2</option>
@@ -1274,9 +1130,7 @@
                             <option value="4" selected>4</option>
                             <option value="5">5</option>
                         </select>
-                    </div>
-                    <div class="fx-param">
-                        <label>-</label>
+                        <span class="range-dash">-</span>
                         <select id="gen-octave-high">
                             <option value="3">3</option>
                             <option value="4">4</option>
@@ -1284,7 +1138,7 @@
                             <option value="6">6</option>
                         </select>
                     </div>
-                    <div class="fx-param">
+                    <div class="column-param">
                         <label>Len</label>
                         <select id="gen-length">
                             <option value="0.25">1/16</option>
@@ -1293,8 +1147,6 @@
                             <option value="2">1/2</option>
                             <option value="4">1</option>
                         </select>
-                    </div>
-                    <div class="fx-param">
                         <label>Pat</label>
                         <select id="gen-pattern">
                             <option value="random">Rnd</option>
@@ -1304,12 +1156,106 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Reverb Column -->
+                <div class="column" id="reverb-column">
+                    <div class="column-header">Reverb</div>
+                    <div class="column-param">
+                        <label>Mix</label>
+                        <input
+                            type="range"
+                            id="reverb-mix"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0"
+                        />
+                        <span class="param-value" id="reverb-mix-value"
+                            >0%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Size</label>
+                        <input
+                            type="range"
+                            id="reverb-size"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.5"
+                            data-tooltip="Room Size"
+                        />
+                        <span class="param-value" id="reverb-size-value"
+                            >50%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Decay</label>
+                        <input
+                            type="range"
+                            id="reverb-decay"
+                            min="0.1"
+                            max="5"
+                            step="0.1"
+                            value="2"
+                        />
+                        <span class="param-value" id="reverb-decay-value"
+                            >2.0s</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Pre-dly</label>
+                        <input
+                            type="range"
+                            id="reverb-predelay"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value="10"
+                            data-tooltip="Pre-delay (ms)"
+                        />
+                        <span class="param-value" id="reverb-predelay-value"
+                            >10ms</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Damp</label>
+                        <input
+                            type="range"
+                            id="reverb-damping"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.4"
+                            data-tooltip="High Frequency Damping"
+                        />
+                        <span class="param-value" id="reverb-damping-value"
+                            >40%</span
+                        >
+                    </div>
+                    <div class="column-param">
+                        <label>Shimmer</label>
+                        <input
+                            type="range"
+                            id="reverb-shimmer"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0"
+                            data-tooltip="Pitch-shifted feedback"
+                        />
+                        <span class="param-value" id="reverb-shimmer-value"
+                            >0%</span
+                        >
+                    </div>
+                </div>
             </div>
 
-            <!-- ADSR controls -->
-            <div id="adsr-controls">
-                <div class="adsr-param">
-                    <label for="attack">Attack</label>
+            <!-- ADSR Row -->
+            <div class="param-row" id="adsr-row">
+                <label class="row-label">ADSR</label>
+                <div class="mini-param">
+                    <label>A</label>
                     <input
                         type="range"
                         id="attack"
@@ -1317,11 +1263,12 @@
                         max="2"
                         step="0.001"
                         value="0.01"
+                        data-tooltip="Attack"
                     />
-                    <span class="value" id="attack-value">0.01s</span>
+                    <span class="mini-value" id="attack-value">0.01</span>
                 </div>
-                <div class="adsr-param">
-                    <label for="decay">Decay</label>
+                <div class="mini-param">
+                    <label>D</label>
                     <input
                         type="range"
                         id="decay"
@@ -1329,11 +1276,12 @@
                         max="2"
                         step="0.001"
                         value="0.1"
+                        data-tooltip="Decay"
                     />
-                    <span class="value" id="decay-value">0.10s</span>
+                    <span class="mini-value" id="decay-value">0.10</span>
                 </div>
-                <div class="adsr-param">
-                    <label for="sustain">Sustain</label>
+                <div class="mini-param">
+                    <label>S</label>
                     <input
                         type="range"
                         id="sustain"
@@ -1341,11 +1289,12 @@
                         max="1"
                         step="0.01"
                         value="0.7"
+                        data-tooltip="Sustain"
                     />
-                    <span class="value" id="sustain-value">0.70</span>
+                    <span class="mini-value" id="sustain-value">0.70</span>
                 </div>
-                <div class="adsr-param">
-                    <label for="release">Release</label>
+                <div class="mini-param">
+                    <label>R</label>
                     <input
                         type="range"
                         id="release"
@@ -1353,119 +1302,16 @@
                         max="3"
                         step="0.001"
                         value="0.3"
+                        data-tooltip="Release"
                     />
-                    <span class="value" id="release-value">0.30s</span>
+                    <span class="mini-value" id="release-value">0.30</span>
                 </div>
             </div>
-
-            <!-- On-screen keyboard -->
-            <section id="keyboard">
-                <div class="keyboard-row">
-                    <div
-                        class="key"
-                        data-key="a"
-                        data-note="C4"
-                        data-freq="261.63"
-                    >
-                        <span class="key-label">A</span>
-                        <span class="key-note">C4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="s"
-                        data-note="D4"
-                        data-freq="293.66"
-                    >
-                        <span class="key-label">S</span>
-                        <span class="key-note">D4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="d"
-                        data-note="E4"
-                        data-freq="329.63"
-                    >
-                        <span class="key-label">D</span>
-                        <span class="key-note">E4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="f"
-                        data-note="F4"
-                        data-freq="349.23"
-                    >
-                        <span class="key-label">F</span>
-                        <span class="key-note">F4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="g"
-                        data-note="G4"
-                        data-freq="392.00"
-                    >
-                        <span class="key-label">G</span>
-                        <span class="key-note">G4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="h"
-                        data-note="A4"
-                        data-freq="440.00"
-                    >
-                        <span class="key-label">H</span>
-                        <span class="key-note">A4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="j"
-                        data-note="B4"
-                        data-freq="493.88"
-                    >
-                        <span class="key-label">J</span>
-                        <span class="key-note">B4</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="k"
-                        data-note="C5"
-                        data-freq="523.25"
-                    >
-                        <span class="key-label">K</span>
-                        <span class="key-note">C5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="l"
-                        data-note="D5"
-                        data-freq="587.33"
-                    >
-                        <span class="key-label">L</span>
-                        <span class="key-note">D5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key=";"
-                        data-note="E5"
-                        data-freq="659.25"
-                    >
-                        <span class="key-label">;</span>
-                        <span class="key-note">E5</span>
-                    </div>
-                    <div
-                        class="key"
-                        data-key="'"
-                        data-note="F5"
-                        data-freq="698.46"
-                    >
-                        <span class="key-label">'</span>
-                        <span class="key-note">F5</span>
-                    </div>
-                </div>
-            </section>
 
             <!-- Status bar -->
             <footer id="status">
                 <span id="status-message">Click map to load terrain</span>
+                <span class="keyboard-hint">Keys A-L to play</span>
                 <div class="midi-status">
                     <span class="midi-indicator" id="midi-indicator"></span>
                     <span id="midi-status">No MIDI</span>
@@ -2191,6 +2037,15 @@
                         );
                     });
                 }
+
+                setPreDelay(ms) {
+                    // value in milliseconds (0-100)
+                    const seconds = ms / 1000;
+                    this.preDelay.delayTime.setValueAtTime(
+                        seconds,
+                        this.audioCtx.currentTime,
+                    );
+                }
             }
 
             // ============================================================
@@ -2308,6 +2163,27 @@
                 setReverbDamping(damping) {
                     if (this.reverb) {
                         this.reverb.setDamping(damping);
+                    }
+                }
+
+                setReverbSize(size) {
+                    if (this.reverb) {
+                        this.reverb.setSize(size);
+                    }
+                }
+
+                setReverbPreDelay(ms) {
+                    if (this.reverb) {
+                        this.reverb.setPreDelay(ms);
+                    }
+                }
+
+                setReverbShimmer(amount) {
+                    if (this.reverb) {
+                        // Shimmer controls modulation depth (0-0.01) and rate (0.3-2)
+                        const depth = amount * 0.01;
+                        const rate = 0.3 + amount * 1.7;
+                        this.reverb.setModulation(depth, rate);
                     }
                 }
 
@@ -4101,6 +3977,15 @@
                             this.filterMod.setRange(parseFloat(e.target.value));
                         });
 
+                    // Filter modulation offset
+                    document
+                        .getElementById("filter-mod-offset")
+                        .addEventListener("input", (e) => {
+                            this.filterMod.setOffset(
+                                parseFloat(e.target.value),
+                            );
+                        });
+
                     // Filter controls
                     const filterCutoff =
                         document.getElementById("filter-cutoff");
@@ -4153,13 +4038,47 @@
                         reverbDecayValue.textContent = `${value.toFixed(1)}s`;
                     });
 
-                    document
-                        .getElementById("reverb-damping")
-                        .addEventListener("input", (e) => {
-                            this.audio.setReverbDamping(
-                                parseFloat(e.target.value),
-                            );
-                        });
+                    const reverbDamping =
+                        document.getElementById("reverb-damping");
+                    const reverbDampingValue = document.getElementById(
+                        "reverb-damping-value",
+                    );
+                    reverbDamping.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbDamping(value);
+                        reverbDampingValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    const reverbSize = document.getElementById("reverb-size");
+                    const reverbSizeValue =
+                        document.getElementById("reverb-size-value");
+                    reverbSize.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbSize(value);
+                        reverbSizeValue.textContent = `${Math.round(value * 100)}%`;
+                    });
+
+                    const reverbPredelay =
+                        document.getElementById("reverb-predelay");
+                    const reverbPredelayValue = document.getElementById(
+                        "reverb-predelay-value",
+                    );
+                    reverbPredelay.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbPreDelay(value);
+                        reverbPredelayValue.textContent = `${value}ms`;
+                    });
+
+                    const reverbShimmer =
+                        document.getElementById("reverb-shimmer");
+                    const reverbShimmerValue = document.getElementById(
+                        "reverb-shimmer-value",
+                    );
+                    reverbShimmer.addEventListener("input", (e) => {
+                        const value = parseFloat(e.target.value);
+                        this.audio.setReverbShimmer(value);
+                        reverbShimmerValue.textContent = `${Math.round(value * 100)}%`;
+                    });
 
                     // Generative controls
                     document
