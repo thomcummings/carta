@@ -442,20 +442,6 @@
                 margin: 0 4px;
             }
 
-            /* ADSR row specific */
-            #adsr-row {
-                gap: 16px;
-            }
-
-            #adsr-row .mini-param {
-                flex: 1;
-            }
-
-            #adsr-row .mini-param input[type="range"] {
-                flex: 1;
-                width: auto;
-            }
-
             /* ============================================================
                THREE COLUMN SECTION
                ============================================================ */
@@ -481,10 +467,12 @@
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
                 color: var(--text);
+                height: 20px;
                 padding-bottom: 6px;
                 border-bottom: 1px solid var(--border);
                 display: flex;
                 align-items: center;
+                justify-content: space-between;
                 gap: 8px;
             }
 
@@ -519,9 +507,81 @@
                 font-size: 10px;
             }
 
+            .column-subheader {
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+                margin-top: 4px;
+                padding-top: 8px;
+                border-top: 1px solid var(--border);
+            }
+
             .column-param .range-dash {
                 font-size: 10px;
                 color: var(--text-muted);
+            }
+
+            /* Dual-range slider for octave selection */
+            .dual-range-slider {
+                position: relative;
+                width: 80px;
+                height: 20px;
+            }
+
+            .dual-range-slider input[type="range"] {
+                position: absolute;
+                width: 100%;
+                pointer-events: none;
+                -webkit-appearance: none;
+                appearance: none;
+                background: transparent;
+                height: 20px;
+            }
+
+            .dual-range-slider input[type="range"]::-webkit-slider-thumb {
+                pointer-events: all;
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                background: var(--text);
+                border-radius: 50%;
+                cursor: pointer;
+                position: relative;
+                z-index: 2;
+            }
+
+            .dual-range-slider input[type="range"]::-moz-range-thumb {
+                pointer-events: all;
+                width: 12px;
+                height: 12px;
+                background: var(--text);
+                border-radius: 50%;
+                border: none;
+                cursor: pointer;
+                position: relative;
+                z-index: 2;
+            }
+
+            .dual-range-slider .range-track {
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: var(--border);
+                transform: translateY(-50%);
+                z-index: 0;
+            }
+
+            .dual-range-slider .range-selected {
+                position: absolute;
+                top: 50%;
+                height: 2px;
+                background: var(--text);
+                transform: translateY(-50%);
+                z-index: 1;
             }
 
             /* Play button */
@@ -913,6 +973,7 @@
                     value="0.5"
                 />
                 <span class="param-value" id="morph-value">0.50</span>
+                <div class="row-divider"></div>
                 <select id="morph-mod-source" class="mod-select">
                     <option value="manual">Manual</option>
                     <option value="lfo1">LFO 1</option>
@@ -961,6 +1022,22 @@
                     value="20000"
                 />
                 <span class="param-value" id="filter-cutoff-value">20kHz</span>
+                <div class="mini-param">
+                    <label>Res</label>
+                    <input
+                        type="range"
+                        id="filter-resonance"
+                        min="0"
+                        max="20"
+                        step="0.1"
+                        value="0"
+                        data-tooltip="Resonance"
+                    />
+                    <span class="mini-value" id="filter-resonance-value"
+                        >0.0</span
+                    >
+                </div>
+                <div class="row-divider"></div>
                 <select id="filter-mod-source" class="mod-select">
                     <option value="manual">Off</option>
                     <option value="lfo1">LFO 1</option>
@@ -993,22 +1070,6 @@
                         value="0"
                         data-tooltip="Modulation Offset"
                     />
-                </div>
-                <div class="row-divider"></div>
-                <div class="mini-param">
-                    <label>Res</label>
-                    <input
-                        type="range"
-                        id="filter-resonance"
-                        min="0"
-                        max="20"
-                        step="0.1"
-                        value="0"
-                        data-tooltip="Resonance"
-                    />
-                    <span class="mini-value" id="filter-resonance-value"
-                        >0.0</span
-                    >
                 </div>
             </div>
 
@@ -1047,11 +1108,65 @@
                             >1.0</span
                         >
                     </div>
+                    <div class="column-subheader">Envelope</div>
+                    <div class="column-param">
+                        <label>A</label>
+                        <input
+                            type="range"
+                            id="attack"
+                            min="0.001"
+                            max="2"
+                            step="0.001"
+                            value="0.01"
+                            data-tooltip="Attack"
+                        />
+                        <span class="param-value" id="attack-value">0.01</span>
+                    </div>
+                    <div class="column-param">
+                        <label>D</label>
+                        <input
+                            type="range"
+                            id="decay"
+                            min="0.001"
+                            max="2"
+                            step="0.001"
+                            value="0.1"
+                            data-tooltip="Decay"
+                        />
+                        <span class="param-value" id="decay-value">0.10</span>
+                    </div>
+                    <div class="column-param">
+                        <label>S</label>
+                        <input
+                            type="range"
+                            id="sustain"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.7"
+                            data-tooltip="Sustain"
+                        />
+                        <span class="param-value" id="sustain-value">0.70</span>
+                    </div>
+                    <div class="column-param">
+                        <label>R</label>
+                        <input
+                            type="range"
+                            id="release"
+                            min="0.001"
+                            max="3"
+                            step="0.001"
+                            value="0.3"
+                            data-tooltip="Release"
+                        />
+                        <span class="param-value" id="release-value">0.30</span>
+                    </div>
                 </div>
 
                 <!-- Sequencer Column -->
                 <div class="column" id="seq-column">
                     <div class="column-header">
+                        <span>Sequencer</span>
                         <button
                             id="gen-play-btn"
                             class="play-btn"
@@ -1065,7 +1180,6 @@
                                 <polygon points="5,3 19,12 5,21" />
                             </svg>
                         </button>
-                        <span>Sequencer</span>
                     </div>
                     <div class="column-param">
                         <label>Root</label>
@@ -1115,7 +1229,7 @@
                             id="gen-probability"
                             min="0"
                             max="1"
-                            step="0.05"
+                            step="0.01"
                             value="0.7"
                         />
                         <span class="param-value" id="gen-probability-value"
@@ -1123,23 +1237,33 @@
                         >
                     </div>
                     <div class="column-param">
-                        <label>Oct</label>
-                        <select id="gen-octave-low">
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4" selected>4</option>
-                            <option value="5">5</option>
-                        </select>
-                        <span class="range-dash">-</span>
-                        <select id="gen-octave-high">
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5" selected>5</option>
-                            <option value="6">6</option>
-                        </select>
+                        <label>Octave</label>
+                        <div class="dual-range-slider" id="octave-range">
+                            <input
+                                type="range"
+                                id="gen-octave-low"
+                                min="2"
+                                max="6"
+                                value="4"
+                                step="1"
+                            />
+                            <input
+                                type="range"
+                                id="gen-octave-high"
+                                min="2"
+                                max="6"
+                                value="5"
+                                step="1"
+                            />
+                            <div class="range-track"></div>
+                            <div class="range-selected"></div>
+                        </div>
+                        <span class="param-value" id="octave-range-value"
+                            >4-5</span
+                        >
                     </div>
                     <div class="column-param">
-                        <label>Len</label>
+                        <label>Length</label>
                         <select id="gen-length">
                             <option value="0.25">1/16</option>
                             <option value="0.5">1/8</option>
@@ -1147,7 +1271,7 @@
                             <option value="2">1/2</option>
                             <option value="4">1</option>
                         </select>
-                        <label>Pat</label>
+                        <label>Pattern</label>
                         <select id="gen-pattern">
                             <option value="random">Rnd</option>
                             <option value="ascending">Up</option>
@@ -1248,63 +1372,6 @@
                             >0%</span
                         >
                     </div>
-                </div>
-            </div>
-
-            <!-- ADSR Row -->
-            <div class="param-row" id="adsr-row">
-                <label class="row-label">ADSR</label>
-                <div class="mini-param">
-                    <label>A</label>
-                    <input
-                        type="range"
-                        id="attack"
-                        min="0.001"
-                        max="2"
-                        step="0.001"
-                        value="0.01"
-                        data-tooltip="Attack"
-                    />
-                    <span class="mini-value" id="attack-value">0.01</span>
-                </div>
-                <div class="mini-param">
-                    <label>D</label>
-                    <input
-                        type="range"
-                        id="decay"
-                        min="0.001"
-                        max="2"
-                        step="0.001"
-                        value="0.1"
-                        data-tooltip="Decay"
-                    />
-                    <span class="mini-value" id="decay-value">0.10</span>
-                </div>
-                <div class="mini-param">
-                    <label>S</label>
-                    <input
-                        type="range"
-                        id="sustain"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="0.7"
-                        data-tooltip="Sustain"
-                    />
-                    <span class="mini-value" id="sustain-value">0.70</span>
-                </div>
-                <div class="mini-param">
-                    <label>R</label>
-                    <input
-                        type="range"
-                        id="release"
-                        min="0.001"
-                        max="3"
-                        step="0.001"
-                        value="0.3"
-                        data-tooltip="Release"
-                    />
-                    <span class="mini-value" id="release-value">0.30</span>
                 </div>
             </div>
 
@@ -4124,32 +4191,42 @@
                         genProbabilityValue.textContent = `${Math.round(value * 100)}%`;
                     });
 
-                    document
-                        .getElementById("gen-octave-low")
-                        .addEventListener("change", (e) => {
-                            const low = parseInt(e.target.value);
-                            const high = parseInt(
-                                document.getElementById("gen-octave-high")
-                                    .value,
-                            );
-                            this.sequencer.setOctaveRange(
-                                low,
-                                Math.max(low, high),
-                            );
-                        });
+                    // Dual-range octave slider
+                    const octaveLow = document.getElementById("gen-octave-low");
+                    const octaveHigh =
+                        document.getElementById("gen-octave-high");
+                    const octaveRangeValue =
+                        document.getElementById("octave-range-value");
+                    const rangeSelected = document.querySelector(
+                        "#octave-range .range-selected",
+                    );
 
-                    document
-                        .getElementById("gen-octave-high")
-                        .addEventListener("change", (e) => {
-                            const high = parseInt(e.target.value);
-                            const low = parseInt(
-                                document.getElementById("gen-octave-low").value,
-                            );
-                            this.sequencer.setOctaveRange(
-                                Math.min(low, high),
-                                high,
-                            );
-                        });
+                    const updateOctaveRange = () => {
+                        let low = parseInt(octaveLow.value);
+                        let high = parseInt(octaveHigh.value);
+
+                        // Ensure low <= high
+                        if (low > high) {
+                            [low, high] = [high, low];
+                            octaveLow.value = low;
+                            octaveHigh.value = high;
+                        }
+
+                        this.sequencer.setOctaveRange(low, high);
+                        octaveRangeValue.textContent = `${low}-${high}`;
+
+                        // Update visual range indicator
+                        const min = 2,
+                            max = 6;
+                        const leftPercent = ((low - min) / (max - min)) * 100;
+                        const rightPercent = ((high - min) / (max - min)) * 100;
+                        rangeSelected.style.left = `${leftPercent}%`;
+                        rangeSelected.style.width = `${rightPercent - leftPercent}%`;
+                    };
+
+                    octaveLow.addEventListener("input", updateOctaveRange);
+                    octaveHigh.addEventListener("input", updateOctaveRange);
+                    updateOctaveRange(); // Initialize
 
                     document
                         .getElementById("gen-length")
