@@ -4863,12 +4863,14 @@
                     // }
 
                     // Load terrain from location
-                    // Note: map.goTo() already triggers onMapClick via onLocationSelect
                     if (preset.location) {
                         const { lat, lng } = preset.location;
-                        await this.onMapClick(lat, lng);
-                        // Move map view after terrain starts loading
+                        // Reset loading state in case it's stuck
+                        this.isLoading = false;
+                        // Move map view first so area rectangle is calculated correctly
                         this.map.setViewOnly(lat, lng, 13);
+                        // Then trigger terrain fetch
+                        await this.onMapClick(lat, lng);
                     }
 
                     this.setStatus(`Loaded preset: ${preset.name}`);
