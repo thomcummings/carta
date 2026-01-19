@@ -3961,6 +3961,9 @@
                     this.vel = { x: 0, y: 0 };
                     this.lastVel = { x: 0, y: 0 };
                     this.running = true;
+                    this.frameCount = 0; // Grace period before settle detection
+
+                    console.log(`GravityFlow: Dropping ball at (${x.toFixed(1)}, ${y.toFixed(1)})`);
 
                     if (!this.animationId) {
                         this.lastTime = performance.now();
@@ -3969,7 +3972,10 @@
                 }
 
                 dropAtRandomPeak() {
-                    if (!this.frames) return;
+                    if (!this.frames) {
+                        console.warn('GravityFlow: Cannot drop - no frames loaded');
+                        return;
+                    }
 
                     // Find high points in terrain
                     let maxElev = -Infinity;
@@ -4031,7 +4037,12 @@
                 }
 
                 update(dt) {
-                    if (!this.frames) return;
+                    if (!this.frames) {
+                        console.warn('GravityFlow: No frames data');
+                        return;
+                    }
+
+                    this.frameCount++;
 
                     // Sample gradient at current position
                     const gradient = this.sampleGradient(this.pos.x, this.pos.y);
@@ -4055,6 +4066,11 @@
                         this.vel.y = (this.vel.y / speed) * maxSpeed;
                     }
 
+                    // Log occasionally for debugging
+                    if (this.frameCount % 60 === 1) {
+                        console.log(`GravityFlow: pos=(${this.pos.x.toFixed(1)}, ${this.pos.y.toFixed(1)}), speed=${speed.toFixed(2)}, gradient=(${gradient.x.toFixed(3)}, ${gradient.y.toFixed(3)})`);
+                    }
+
                     // Detect direction change before updating position
                     if (speed > 1) {
                         const angleChange = this.getAngleChange();
@@ -4075,8 +4091,9 @@
                         this.onPositionUpdate(this.pos.x, this.pos.y);
                     }
 
-                    // Check if settled
-                    if (speed < 0.5) {
+                    // Check if settled (with grace period to let ball accelerate first)
+                    if (this.frameCount > 60 && speed < 0.5) {
+                        console.log('GravityFlow: Ball settled');
                         this.handleSettle();
                     }
 
@@ -5326,7 +5343,9 @@
                 // --------------------------------------------------------
 
                 dropGravityBall() {
+                    console.log('GravityFlow: Drop button clicked');
                     if (!this.wavetableData) {
+                        console.warn('GravityFlow: No terrain loaded');
                         this.updateGravityStatus('Load terrain first');
                         return;
                     }
