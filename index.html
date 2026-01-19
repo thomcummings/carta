@@ -3821,14 +3821,13 @@
                 }
 
                 // Called by ModulationManager with raw 0-1 value
-                // Range: how much of the 0-1 range to sweep (1 = full sweep)
-                // Offset: shifts the sweep upward (0 = starts at bottom, 1 = starts at top)
+                // Offset: where sweep starts (floor)
+                // Range: how far up from offset it sweeps
                 update(rawValue) {
                     // rawValue is 0-1 from LFO sine wave
-                    // Scale by range, then shift by offset
-                    const scaled = rawValue * this.range;
-                    const shifted = scaled + this.offset * (1 - this.range);
-                    const clamped = Math.max(0, Math.min(1, shifted));
+                    // Output = offset + (rawValue * range), clamped to 0-1
+                    const output = this.offset + rawValue * this.range;
+                    const clamped = Math.max(0, Math.min(1, output));
                     this.onChange(clamped);
                 }
 
