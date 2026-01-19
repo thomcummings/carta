@@ -13,15 +13,17 @@ Stabilizing core synth functionality and exploring sound design features.
 
 ## Up Next
 - [ ] Merge and test feature branches
-- [ ] Add stereo width control to reverb section
-- [ ] URL sharing (encode location + settings in URL params)
-- [ ] Export wavetable as WAV/audio file
+- [ ] URL sharing — Encode location + settings in URL params for shareability
+- [ ] User presets — Save/load presets to localStorage
+- [ ] Wavetable export — Export terrain as .wav or Serum-compatible format
 
 ## Later
-- [ ] Save/load user presets (localStorage)
+- [ ] Journey mode — Draw path on map, terrain crossfades along route over time
+- [ ] Add stereo width control to reverb section
 - [ ] Additional effects (delay, distortion)
+- [ ] Terrain comparison mode — A/B two locations with crossfader
+- [ ] Micro/macro terrain toggle — 100m² to 50km² scale options
 - [ ] Higher resolution wavetable options
-- [ ] Multi-voice polyphony improvements
 - [ ] Pitch bend support
 
 ## Icebox
@@ -29,7 +31,9 @@ Ideas we're not pursuing now but might revisit:
 - Seafloor/bathymetry data (requires different API)
 - Mobile-optimized layout
 - MIDI CC mapping UI
-- Wavetable export to other synth formats
+- Plugin version (VST/AU via JUCE)
+- Real-time GPS mode (sound changes as you walk)
+- Journey as generative sequencer (terrain features trigger notes)
 
 ## Shipped
 - [x] Core terrain wavetable synthesis — 2025-01
