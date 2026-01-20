@@ -569,6 +569,26 @@
                 font-size: 10px;
             }
 
+            /* Compact terrain controls */
+            .terrain-steps-control,
+            .terrain-arp-controls {
+                gap: 4px;
+            }
+
+            .terrain-steps-control label,
+            .terrain-arp-controls label {
+                min-width: 28px;
+                font-size: 8px;
+            }
+
+            .terrain-steps-control select,
+            .terrain-arp-controls select {
+                min-width: 42px;
+                max-width: 52px;
+                font-size: 9px;
+                padding: 2px 2px;
+            }
+
             .lfo-shape-select {
                 min-width: 58px;
                 max-width: 58px;
@@ -1372,6 +1392,14 @@
                         >
                     </div>
                     <div class="column-param">
+                        <label>Pattern</label>
+                        <select id="gen-pattern" data-tooltip="Sequence pattern">
+                            <option value="random">Rnd</option>
+                            <option value="ascending">Up</option>
+                            <option value="descending">Dn</option>
+                            <option value="pendulum">Pnd</option>
+                            <option value="terrain">Terrain</option>
+                        </select>
                         <label>Length</label>
                         <select id="gen-length" data-tooltip="Note length">
                             <option value="0.25">1/16</option>
@@ -1380,13 +1408,40 @@
                             <option value="2">1/2</option>
                             <option value="4">1</option>
                         </select>
-                        <label>Pattern</label>
-                        <select id="gen-pattern" data-tooltip="Sequence pattern">
+                        <span class="terrain-steps-control hidden" id="terrain-steps-wrapper">
+                            <label>Steps</label>
+                            <select id="terrain-steps" data-tooltip="Steps per cycle">
+                                <option value="8">8</option>
+                                <option value="16" selected>16</option>
+                                <option value="32">32</option>
+                            </select>
+                        </span>
+                    </div>
+                    <div class="column-param terrain-arp-controls hidden" id="terrain-arp-controls">
+                        <label>Arp</label>
+                        <select id="terrain-arp-mode" data-tooltip="Arpeggiator mode">
+                            <option value="off">Off</option>
+                            <option value="on" selected>On</option>
+                        </select>
+                        <label>Notes</label>
+                        <select id="terrain-arp-notes" data-tooltip="Notes per arp">
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4" selected>4</option>
+                            <option value="8">8</option>
+                        </select>
+                        <label>Rate</label>
+                        <select id="terrain-arp-rate" data-tooltip="Arp note rate">
+                            <option value="0.125">1/32</option>
+                            <option value="0.25" selected>1/16</option>
+                            <option value="0.5">1/8</option>
+                        </select>
+                        <label>Dir</label>
+                        <select id="terrain-arp-dir" data-tooltip="Arp direction">
+                            <option value="up" selected>Up</option>
+                            <option value="down">Dn</option>
+                            <option value="updown">U-D</option>
                             <option value="random">Rnd</option>
-                            <option value="ascending">Up</option>
-                            <option value="descending">Dn</option>
-                            <option value="pendulum">Pnd</option>
-                            <option value="terrain">Terrain</option>
                         </select>
                     </div>
                 </div>
@@ -2812,6 +2867,8 @@
                     this.controls = null;
                     this.terrainMesh = null;
                     this.morphLine = null;
+                    this.sequencerLine = null;
+                    this.sequencerColIndex = -1; // -1 = hidden
 
                     this.init();
                 }
@@ -2885,6 +2942,13 @@
                             this.isLightMode ? 0x0088cc : 0x66ccff,
                         );
                     }
+
+                    // Update sequencer line if it exists (warm orange)
+                    if (this.sequencerLine) {
+                        this.sequencerLine.material.color.setHex(
+                            this.isLightMode ? 0xcc6600 : 0xffaa44,
+                        );
+                    }
                 }
 
                 setLightMode(isLight) {
@@ -2919,6 +2983,12 @@
                         this.scene.remove(this.morphLine);
                         this.morphLine.geometry.dispose();
                         this.morphLine.material.dispose();
+                    }
+                    if (this.sequencerLine) {
+                        this.scene.remove(this.sequencerLine);
+                        this.sequencerLine.geometry.dispose();
+                        this.sequencerLine.material.dispose();
+                        this.sequencerLine = null;
                     }
 
                     if (this.frames.length === 0) {
@@ -3095,6 +3165,88 @@
                     }
 
                     this.morphLine.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Set the current sequencer column (-1 to hide)
+                setSequencerColumn(colIndex, totalSteps = 16) {
+                    this.sequencerColIndex = colIndex;
+                    this.sequencerTotalSteps = totalSteps;
+
+                    if (colIndex < 0) {
+                        // Hide the line
+                        if (this.sequencerLine) {
+                            this.sequencerLine.visible = false;
+                        }
+                        return;
+                    }
+
+                    // Create line if needed
+                    if (!this.sequencerLine && this.frames.length > 0) {
+                        this.createSequencerLine();
+                    }
+
+                    if (this.sequencerLine) {
+                        this.sequencerLine.visible = true;
+                        this.updateSequencerLine();
+                    }
+                }
+
+                createSequencerLine() {
+                    if (this.frames.length === 0) return;
+
+                    const numFrames = this.frames.length;
+
+                    const geometry = new THREE.BufferGeometry();
+                    // Vertical line through all rows (N→S)
+                    const positions = new Float32Array(numFrames * 3);
+
+                    geometry.setAttribute(
+                        "position",
+                        new THREE.BufferAttribute(positions, 3),
+                    );
+
+                    // Warm orange color to distinguish from morph line (blue)
+                    const material = new THREE.LineBasicMaterial({
+                        color: this.isLightMode ? 0xcc6600 : 0xffaa44,
+                        linewidth: 3,
+                        transparent: true,
+                        opacity: 1,
+                    });
+
+                    this.sequencerLine = new THREE.Line(geometry, material);
+                    this.sequencerLine.scale.setScalar(1.3);
+                    this.sequencerLine.visible = this.sequencerColIndex >= 0;
+                    this.scene.add(this.sequencerLine);
+                }
+
+                updateSequencerLine() {
+                    if (!this.sequencerLine || this.frames.length === 0) return;
+                    if (this.sequencerColIndex < 0) return;
+
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+
+                    // Map step index to sample index (0-255)
+                    const maxStepIdx = (this.sequencerTotalSteps || 16) - 1;
+                    const sampleIndex = Math.floor((this.sequencerColIndex / maxStepIdx) * (samplesPerFrame - 1));
+                    // Map to x position (-0.5 to 0.5)
+                    const x = (sampleIndex / (samplesPerFrame - 1)) - 0.5;
+
+                    const positions =
+                        this.sequencerLine.geometry.attributes.position.array;
+                    let idx = 0;
+
+                    // Draw vertical line through all rows at this column
+                    for (let f = 0; f < numFrames; f++) {
+                        const z = (f / (numFrames - 1)) - 0.5;
+                        const y = this.frames[f][sampleIndex] * 0.3;
+
+                        positions[idx++] = x;
+                        positions[idx++] = y;
+                        positions[idx++] = z;
+                    }
+
+                    this.sequencerLine.geometry.attributes.position.needsUpdate = true;
                 }
 
                 resetView() {
@@ -3732,10 +3884,42 @@
                     this.activeNote = null;
 
                     // Terrain-driven sequencing
-                    this.terrainStats = null; // Array of 32 row stats
+                    this.terrainStats = null; // Array of column stats
                     this.terrainMinElev = 0;
                     this.terrainMaxElev = 1;
                     this.terrainMaxVariance = 1;
+                    this.terrainSteps = 16; // Configurable: 8, 16, 32
+                    this.onTerrainStep = null; // Callback: (colIndex) => {}
+
+                    // Arp settings
+                    this.arpEnabled = true;
+                    this.arpNotes = 4;
+                    this.arpRate = 0.25; // In beats (1/16 = 0.25)
+                    this.arpDirection = "up"; // up, down, updown, random
+                }
+
+                setArpEnabled(enabled) {
+                    this.arpEnabled = enabled;
+                }
+
+                setArpNotes(notes) {
+                    this.arpNotes = notes;
+                }
+
+                setArpRate(rate) {
+                    this.arpRate = rate;
+                }
+
+                setArpDirection(dir) {
+                    this.arpDirection = dir;
+                }
+
+                setTerrainSteps(steps) {
+                    this.terrainSteps = steps;
+                    // Recompute terrain stats if we have raw data
+                    if (this.rawElevations) {
+                        this.setTerrainData(this.rawElevations);
+                    }
                 }
 
                 setScaleManager(scaleManager) {
@@ -3821,25 +4005,89 @@
                             }
                             break;
                         case "terrain":
-                            // Terrain-driven: step through 32 rows, elevation = pitch
+                            // Terrain-driven: 16-step E→W sweep, optional arps from N→S profile
                             if (!this.terrainStats) {
                                 // Fallback to random if no terrain loaded
                                 note = notes[Math.floor(Math.random() * notes.length)];
                             } else {
-                                const rowIndex = this.currentNoteIndex % 32;
-                                const stats = this.terrainStats[rowIndex];
-
-                                // Map row's average elevation to note index
+                                const numSteps = this.numSteps || 16;
+                                const stepIndex = this.currentNoteIndex % numSteps;
+                                const stats = this.terrainStats[stepIndex];
                                 const elevRange = this.terrainMaxElev - this.terrainMinElev || 1;
-                                const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
-                                const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
-                                note = notes[Math.min(noteIndex, notes.length - 1)];
 
-                                // Store velocity based on variance (rougher = louder)
+                                // Base velocity from variance
                                 const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
-                                this.terrainVelocity = 0.4 + normalizedVariance * 0.5; // Range 0.4 to 0.9
+                                const baseVelocity = 0.4 + normalizedVariance * 0.5;
 
-                                this.currentNoteIndex++;
+                                // Notify listener of current column and total steps
+                                if (this.onTerrainStep) {
+                                    this.onTerrainStep(stepIndex, numSteps);
+                                }
+
+                                if (this.arpEnabled) {
+                                    // Play arp: N notes derived from N→S terrain profile
+                                    const numRows = this.numRows || 32;
+                                    const beatDuration = 60000 / this.bpm;
+                                    // Arp rate is independent of step length
+                                    const arpNoteDuration = beatDuration * this.arpRate;
+
+                                    // Build arp indices based on direction
+                                    let arpIndices = [];
+                                    for (let i = 0; i < this.arpNotes; i++) {
+                                        arpIndices.push(i);
+                                    }
+
+                                    switch (this.arpDirection) {
+                                        case "down":
+                                            arpIndices.reverse();
+                                            break;
+                                        case "updown":
+                                            // 0,1,2,3,2,1 for 4 notes
+                                            const updown = [...arpIndices];
+                                            for (let i = this.arpNotes - 2; i > 0; i--) {
+                                                updown.push(i);
+                                            }
+                                            arpIndices = updown;
+                                            break;
+                                        case "random":
+                                            // Fisher-Yates shuffle
+                                            for (let i = arpIndices.length - 1; i > 0; i--) {
+                                                const j = Math.floor(Math.random() * (i + 1));
+                                                [arpIndices[i], arpIndices[j]] = [arpIndices[j], arpIndices[i]];
+                                            }
+                                            break;
+                                        // "up" is default, no change needed
+                                    }
+
+                                    // Schedule arp notes
+                                    arpIndices.forEach((a, scheduleIdx) => {
+                                        const rowIdx = Math.floor((a / (this.arpNotes - 1)) * (numRows - 1));
+                                        const elev = stats.colValues[rowIdx];
+                                        const normalizedElev = (elev - this.terrainMinElev) / elevRange;
+                                        const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                        const arpNote = notes[Math.min(noteIndex, notes.length - 1)];
+                                        const delay = scheduleIdx * arpNoteDuration;
+
+                                        setTimeout(() => {
+                                            if (!this.enabled) return;
+                                            const id = `arp_${Date.now()}_${scheduleIdx}`;
+                                            this.onNoteOn(id, arpNote.frequency, baseVelocity);
+                                            setTimeout(() => {
+                                                this.onNoteOff(id);
+                                            }, arpNoteDuration * 0.9);
+                                        }, delay);
+                                    });
+
+                                    this.currentNoteIndex++;
+                                    return; // Arp handles its own notes
+                                } else {
+                                    // Single note mode: use average elevation
+                                    const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
+                                    const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                    note = notes[Math.min(noteIndex, notes.length - 1)];
+                                    this.terrainVelocity = baseVelocity;
+                                    this.currentNoteIndex++;
+                                }
                             }
                             break;
                     }
@@ -3879,43 +4127,60 @@
                     this.pendulumDirection = 1;
                 }
 
-                // Compute statistics for each terrain row (latitude band)
-                // Called when new terrain is loaded
+                // Compute statistics for each terrain column (E→W sweep)
+                // Called when new terrain is loaded or steps changes
                 setTerrainData(rawElevations, samplesPerRow = 256, numRows = 32) {
                     if (!rawElevations || rawElevations.length < samplesPerRow * numRows) {
                         this.terrainStats = null;
                         return;
                     }
 
+                    // Store raw data for recomputing when steps changes
+                    this.rawElevations = rawElevations;
+                    this.samplesPerRow = samplesPerRow;
+
+                    // Sample columns evenly across the 256 E→W samples
+                    const numSteps = this.terrainSteps || 16;
+                    const colStep = samplesPerRow / numSteps;
+
                     this.terrainStats = [];
+                    this.numSteps = numSteps;
+                    this.numRows = numRows;
                     let globalMinElev = Infinity;
                     let globalMaxElev = -Infinity;
                     let maxVariance = 0;
 
-                    for (let row = 0; row < numRows; row++) {
-                        const start = row * samplesPerRow;
-                        const rowData = rawElevations.slice(start, start + samplesPerRow);
+                    for (let step = 0; step < numSteps; step++) {
+                        const col = Math.floor(step * colStep);
 
-                        // Calculate average elevation for this row
+                        // Gather elevation values down this column (across all rows)
+                        const colValues = [];
+                        for (let row = 0; row < numRows; row++) {
+                            const idx = row * samplesPerRow + col;
+                            colValues.push(rawElevations[idx]);
+                        }
+
+                        // Calculate average elevation for this column
                         let sum = 0;
                         let min = Infinity;
                         let max = -Infinity;
-                        for (let i = 0; i < rowData.length; i++) {
-                            const val = rowData[i];
+                        for (let i = 0; i < colValues.length; i++) {
+                            const val = colValues[i];
                             sum += val;
                             if (val < min) min = val;
                             if (val > max) max = val;
                         }
-                        const avg = sum / rowData.length;
+                        const avg = sum / colValues.length;
 
-                        // Calculate variance (roughness)
+                        // Calculate variance (roughness along N→S)
                         let varianceSum = 0;
-                        for (let i = 0; i < rowData.length; i++) {
-                            varianceSum += (rowData[i] - avg) ** 2;
+                        for (let i = 0; i < colValues.length; i++) {
+                            varianceSum += (colValues[i] - avg) ** 2;
                         }
-                        const variance = varianceSum / rowData.length;
+                        const variance = varianceSum / colValues.length;
 
-                        this.terrainStats.push({ avg, min, max, variance });
+                        // Store full column values for dynamic arp sampling
+                        this.terrainStats.push({ avg, min, max, variance, col, colValues });
 
                         // Track global ranges
                         if (avg < globalMinElev) globalMinElev = avg;
@@ -3927,7 +4192,7 @@
                     this.terrainMaxElev = globalMaxElev;
                     this.terrainMaxVariance = maxVariance || 1;
 
-                    console.log(`Terrain sequencer: ${numRows} rows, elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
+                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
                 }
             }
 
@@ -4267,6 +4532,11 @@
                         (id) => this.noteOff(id),
                     );
                     this.sequencer.setScaleManager(this.scaleManager);
+
+                    // Terrain step indicator callback - update 3D visualization
+                    this.sequencer.onTerrainStep = (colIndex, totalSteps) => {
+                        this.terrain3D.setSequencerColumn(colIndex, totalSteps);
+                    };
 
                     // Initialize modulation system
                     this.modManager = new ModulationManager();
@@ -4670,6 +4940,48 @@
                         .getElementById("gen-pattern")
                         .addEventListener("change", (e) => {
                             this.sequencer.setPattern(e.target.value);
+                            const arpControls = document.getElementById("terrain-arp-controls");
+                            const stepsControl = document.getElementById("terrain-steps-wrapper");
+                            if (e.target.value === "terrain") {
+                                arpControls.classList.remove("hidden");
+                                stepsControl.classList.remove("hidden");
+                            } else {
+                                arpControls.classList.add("hidden");
+                                stepsControl.classList.add("hidden");
+                                this.terrain3D.setSequencerColumn(-1);
+                            }
+                        });
+
+                    // Terrain steps control
+                    document
+                        .getElementById("terrain-steps")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setTerrainSteps(parseInt(e.target.value));
+                        });
+
+                    // Terrain arp controls
+                    document
+                        .getElementById("terrain-arp-mode")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpEnabled(e.target.value === "on");
+                        });
+
+                    document
+                        .getElementById("terrain-arp-notes")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpNotes(parseInt(e.target.value));
+                        });
+
+                    document
+                        .getElementById("terrain-arp-rate")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpRate(parseFloat(e.target.value));
+                        });
+
+                    document
+                        .getElementById("terrain-arp-dir")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpDirection(e.target.value);
                         });
 
                     // ADSR sliders
