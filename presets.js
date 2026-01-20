@@ -198,59 +198,6 @@ const FACTORY_PRESETS = [
     },
 
     {
-        name: "Norwegian Fjords",
-        description: "Dramatic coastal cliffs with icy, crystalline textures",
-        location: { lat: 62.1047, lng: 7.0940 },
-        areaSize: "5",
-        volume: 0.7,
-
-        morph: {
-            position: 0.7,
-            modSource: "snh",
-            modRange: 0.25,
-            modOffset: 0.6,
-        },
-
-        filter: {
-            cutoff: 16000,
-            resonance: 6,
-            modSource: "lfo1",
-            modRange: 0.3,
-            modOffset: 0.7,
-        },
-
-        lfo1: { rate: 0.6 },
-        lfo2: { rate: 0.4 },
-
-        adsr: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.5 },
-
-        reverb: {
-            mix: 0.45,
-            size: 0.5,
-            decay: 2,
-            predelay: 15,
-            damping: 0.2,
-            shimmer: 0.35,
-        },
-
-        sequencer: {
-            tempo: 130,
-            length: "0.5",
-            pattern: "pendulum",
-            probability: 85,
-            scale: "minor",
-            rootNote: "F#",
-            octaveLow: 4,
-            octaveHigh: 6,
-        },
-
-        // stacking: {
-        //     frames: 5,
-        //     spread: 10,
-        // },
-    },
-
-    {
         name: "Himalayan Ridge",
         description: "Extreme elevation with massive, powerful harmonics",
         location: { lat: 27.9881, lng: 86.9250 },
