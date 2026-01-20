@@ -2777,6 +2777,8 @@
                     this.controls = null;
                     this.terrainMesh = null;
                     this.morphLine = null;
+                    this.sequencerLine = null;
+                    this.sequencerColIndex = -1; // -1 = hidden
 
                     this.init();
                 }
@@ -2850,6 +2852,13 @@
                             this.isLightMode ? 0x0088cc : 0x66ccff,
                         );
                     }
+
+                    // Update sequencer line if it exists (warm orange)
+                    if (this.sequencerLine) {
+                        this.sequencerLine.material.color.setHex(
+                            this.isLightMode ? 0xcc6600 : 0xffaa44,
+                        );
+                    }
                 }
 
                 setLightMode(isLight) {
@@ -2884,6 +2893,12 @@
                         this.scene.remove(this.morphLine);
                         this.morphLine.geometry.dispose();
                         this.morphLine.material.dispose();
+                    }
+                    if (this.sequencerLine) {
+                        this.scene.remove(this.sequencerLine);
+                        this.sequencerLine.geometry.dispose();
+                        this.sequencerLine.material.dispose();
+                        this.sequencerLine = null;
                     }
 
                     if (this.frames.length === 0) {
@@ -3060,6 +3075,86 @@
                     }
 
                     this.morphLine.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Set the current sequencer column (-1 to hide)
+                setSequencerColumn(colIndex) {
+                    this.sequencerColIndex = colIndex;
+
+                    if (colIndex < 0) {
+                        // Hide the line
+                        if (this.sequencerLine) {
+                            this.sequencerLine.visible = false;
+                        }
+                        return;
+                    }
+
+                    // Create line if needed
+                    if (!this.sequencerLine && this.frames.length > 0) {
+                        this.createSequencerLine();
+                    }
+
+                    if (this.sequencerLine) {
+                        this.sequencerLine.visible = true;
+                        this.updateSequencerLine();
+                    }
+                }
+
+                createSequencerLine() {
+                    if (this.frames.length === 0) return;
+
+                    const numFrames = this.frames.length;
+
+                    const geometry = new THREE.BufferGeometry();
+                    // Vertical line through all rows (N→S)
+                    const positions = new Float32Array(numFrames * 3);
+
+                    geometry.setAttribute(
+                        "position",
+                        new THREE.BufferAttribute(positions, 3),
+                    );
+
+                    // Warm orange color to distinguish from morph line (blue)
+                    const material = new THREE.LineBasicMaterial({
+                        color: this.isLightMode ? 0xcc6600 : 0xffaa44,
+                        linewidth: 3,
+                        transparent: true,
+                        opacity: 1,
+                    });
+
+                    this.sequencerLine = new THREE.Line(geometry, material);
+                    this.sequencerLine.scale.setScalar(1.3);
+                    this.sequencerLine.visible = this.sequencerColIndex >= 0;
+                    this.scene.add(this.sequencerLine);
+                }
+
+                updateSequencerLine() {
+                    if (!this.sequencerLine || this.frames.length === 0) return;
+                    if (this.sequencerColIndex < 0) return;
+
+                    const numFrames = this.frames.length;
+                    const samplesPerFrame = this.frames[0].length;
+
+                    // Map step index (0-31) to sample index (0-255)
+                    const sampleIndex = Math.floor((this.sequencerColIndex / 31) * (samplesPerFrame - 1));
+                    // Map to x position (-0.5 to 0.5)
+                    const x = (sampleIndex / (samplesPerFrame - 1)) - 0.5;
+
+                    const positions =
+                        this.sequencerLine.geometry.attributes.position.array;
+                    let idx = 0;
+
+                    // Draw vertical line through all rows at this column
+                    for (let f = 0; f < numFrames; f++) {
+                        const z = (f / (numFrames - 1)) - 0.5;
+                        const y = this.frames[f][sampleIndex] * 0.3;
+
+                        positions[idx++] = x;
+                        positions[idx++] = y;
+                        positions[idx++] = z;
+                    }
+
+                    this.sequencerLine.geometry.attributes.position.needsUpdate = true;
                 }
 
                 resetView() {
@@ -3690,6 +3785,7 @@
                     this.terrainMinElev = 0;
                     this.terrainMaxElev = 1;
                     this.terrainMaxVariance = 1;
+                    this.onTerrainStep = null; // Callback: (rowIndex, totalRows) => {}
                 }
 
                 setScaleManager(scaleManager) {
@@ -3775,15 +3871,15 @@
                             }
                             break;
                         case "terrain":
-                            // Terrain-driven: step through 32 rows, elevation = pitch
+                            // Terrain-driven: step through 32 columns E→W, elevation = pitch
                             if (!this.terrainStats) {
                                 // Fallback to random if no terrain loaded
                                 note = notes[Math.floor(Math.random() * notes.length)];
                             } else {
-                                const rowIndex = this.currentNoteIndex % 32;
-                                const stats = this.terrainStats[rowIndex];
+                                const stepIndex = this.currentNoteIndex % 32;
+                                const stats = this.terrainStats[stepIndex];
 
-                                // Map row's average elevation to note index
+                                // Map column's average elevation to note index
                                 const elevRange = this.terrainMaxElev - this.terrainMinElev || 1;
                                 const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
                                 const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
@@ -3792,6 +3888,11 @@
                                 // Store velocity based on variance (rougher = louder)
                                 const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
                                 this.terrainVelocity = 0.4 + normalizedVariance * 0.5; // Range 0.4 to 0.9
+
+                                // Notify listener of current column
+                                if (this.onTerrainStep) {
+                                    this.onTerrainStep(stepIndex);
+                                }
 
                                 this.currentNoteIndex++;
                             }
@@ -3833,7 +3934,7 @@
                     this.pendulumDirection = 1;
                 }
 
-                // Compute statistics for each terrain row (latitude band)
+                // Compute statistics for each terrain column (E→W sweep)
                 // Called when new terrain is loaded
                 setTerrainData(rawElevations, samplesPerRow = 256, numRows = 32) {
                     if (!rawElevations || rawElevations.length < samplesPerRow * numRows) {
@@ -3841,35 +3942,45 @@
                         return;
                     }
 
+                    // Sample 32 columns evenly across the 256 E→W samples
+                    const numSteps = 32;
+                    const colStep = samplesPerRow / numSteps; // 8
+
                     this.terrainStats = [];
                     let globalMinElev = Infinity;
                     let globalMaxElev = -Infinity;
                     let maxVariance = 0;
 
-                    for (let row = 0; row < numRows; row++) {
-                        const start = row * samplesPerRow;
-                        const rowData = rawElevations.slice(start, start + samplesPerRow);
+                    for (let step = 0; step < numSteps; step++) {
+                        const col = Math.floor(step * colStep);
 
-                        // Calculate average elevation for this row
+                        // Gather elevation values down this column (across all rows)
+                        const colValues = [];
+                        for (let row = 0; row < numRows; row++) {
+                            const idx = row * samplesPerRow + col;
+                            colValues.push(rawElevations[idx]);
+                        }
+
+                        // Calculate average elevation for this column
                         let sum = 0;
                         let min = Infinity;
                         let max = -Infinity;
-                        for (let i = 0; i < rowData.length; i++) {
-                            const val = rowData[i];
+                        for (let i = 0; i < colValues.length; i++) {
+                            const val = colValues[i];
                             sum += val;
                             if (val < min) min = val;
                             if (val > max) max = val;
                         }
-                        const avg = sum / rowData.length;
+                        const avg = sum / colValues.length;
 
-                        // Calculate variance (roughness)
+                        // Calculate variance (roughness along N→S)
                         let varianceSum = 0;
-                        for (let i = 0; i < rowData.length; i++) {
-                            varianceSum += (rowData[i] - avg) ** 2;
+                        for (let i = 0; i < colValues.length; i++) {
+                            varianceSum += (colValues[i] - avg) ** 2;
                         }
-                        const variance = varianceSum / rowData.length;
+                        const variance = varianceSum / colValues.length;
 
-                        this.terrainStats.push({ avg, min, max, variance });
+                        this.terrainStats.push({ avg, min, max, variance, col });
 
                         // Track global ranges
                         if (avg < globalMinElev) globalMinElev = avg;
@@ -3881,7 +3992,7 @@
                     this.terrainMaxElev = globalMaxElev;
                     this.terrainMaxVariance = maxVariance || 1;
 
-                    console.log(`Terrain sequencer: ${numRows} rows, elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
+                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
                 }
             }
 
@@ -4221,6 +4332,11 @@
                         (id) => this.noteOff(id),
                     );
                     this.sequencer.setScaleManager(this.scaleManager);
+
+                    // Terrain step indicator callback - update 3D visualization
+                    this.sequencer.onTerrainStep = (colIndex) => {
+                        this.terrain3D.setSequencerColumn(colIndex);
+                    };
 
                     // Initialize modulation system
                     this.modManager = new ModulationManager();
@@ -4609,6 +4725,10 @@
                         .getElementById("gen-pattern")
                         .addEventListener("change", (e) => {
                             this.sequencer.setPattern(e.target.value);
+                            // Hide sequencer line when switching away from terrain
+                            if (e.target.value !== "terrain") {
+                                this.terrain3D.setSequencerColumn(-1);
+                            }
                         });
 
                     // ADSR sliders
