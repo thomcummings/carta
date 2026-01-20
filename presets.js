@@ -145,9 +145,9 @@ const FACTORY_PRESETS = [
     },
 
     {
-        name: "Sahara Dunes",
-        description: "Smooth rolling sand dunes with gentle, warm tones",
-        location: { lat: 25.0494, lng: 10.4451 },
+        name: "Mount Fuji",
+        description: "Iconic volcanic peak with dramatic, soaring harmonics",
+        location: { lat: 35.3606, lng: 138.7274 },
         areaSize: "10",
         volume: 0.7,
 
@@ -198,9 +198,9 @@ const FACTORY_PRESETS = [
     },
 
     {
-        name: "Icelandic Fjords",
-        description: "Sharp coastal ridges with icy, crystalline textures",
-        location: { lat: 65.6835, lng: -18.1002 },
+        name: "Icelandic Highlands",
+        description: "Dramatic rhyolite mountains with icy, crystalline textures",
+        location: { lat: 63.9930, lng: -19.0615 },
         areaSize: "5",
         volume: 0.7,
 
