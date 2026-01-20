@@ -3135,8 +3135,8 @@
                     const numFrames = this.frames.length;
                     const samplesPerFrame = this.frames[0].length;
 
-                    // Map step index (0-31) to sample index (0-255)
-                    const sampleIndex = Math.floor((this.sequencerColIndex / 31) * (samplesPerFrame - 1));
+                    // Map step index (0-15) to sample index (0-255)
+                    const sampleIndex = Math.floor((this.sequencerColIndex / 15) * (samplesPerFrame - 1));
                     // Map to x position (-0.5 to 0.5)
                     const x = (sampleIndex / (samplesPerFrame - 1)) - 0.5;
 
@@ -3871,23 +3871,41 @@
                             }
                             break;
                         case "terrain":
-                            // Terrain-driven: step through 32 columns E→W, elevation = pitch
+                            // Terrain-driven: 16-step E→W sweep with 4-note arps from N→S profile
                             if (!this.terrainStats) {
                                 // Fallback to random if no terrain loaded
                                 note = notes[Math.floor(Math.random() * notes.length)];
                             } else {
-                                const stepIndex = this.currentNoteIndex % 32;
+                                const numSteps = this.numSteps || 16;
+                                const stepIndex = this.currentNoteIndex % numSteps;
                                 const stats = this.terrainStats[stepIndex];
-
-                                // Map column's average elevation to note index
                                 const elevRange = this.terrainMaxElev - this.terrainMinElev || 1;
-                                const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
-                                const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
-                                note = notes[Math.min(noteIndex, notes.length - 1)];
 
-                                // Store velocity based on variance (rougher = louder)
+                                // Play arp: 4 notes derived from N→S terrain profile
+                                const arpProfile = stats.arpProfile;
+                                const beatDuration = 60000 / this.bpm;
+                                const arpNoteDuration = (beatDuration * this.noteLength) / arpProfile.length;
+
+                                // Base velocity from variance
                                 const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
-                                this.terrainVelocity = 0.4 + normalizedVariance * 0.5; // Range 0.4 to 0.9
+                                const baseVelocity = 0.4 + normalizedVariance * 0.5;
+
+                                // Schedule each arp note
+                                arpProfile.forEach((elev, arpIdx) => {
+                                    const normalizedElev = (elev - this.terrainMinElev) / elevRange;
+                                    const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                    const arpNote = notes[Math.min(noteIndex, notes.length - 1)];
+                                    const delay = arpIdx * arpNoteDuration;
+
+                                    setTimeout(() => {
+                                        if (!this.enabled) return;
+                                        const id = `arp_${Date.now()}_${arpIdx}`;
+                                        this.onNoteOn(id, arpNote.frequency, baseVelocity);
+                                        setTimeout(() => {
+                                            this.onNoteOff(id);
+                                        }, arpNoteDuration * 0.9);
+                                    }, delay);
+                                });
 
                                 // Notify listener of current column
                                 if (this.onTerrainStep) {
@@ -3895,6 +3913,8 @@
                                 }
 
                                 this.currentNoteIndex++;
+                                // Return early - arp handles its own notes
+                                return;
                             }
                             break;
                     }
@@ -3942,11 +3962,13 @@
                         return;
                     }
 
-                    // Sample 32 columns evenly across the 256 E→W samples
-                    const numSteps = 32;
-                    const colStep = samplesPerRow / numSteps; // 8
+                    // Sample 16 columns evenly across the 256 E→W samples
+                    const numSteps = 16;
+                    const colStep = samplesPerRow / numSteps; // 16
+                    const arpNotes = 4; // 4-note arps from N→S profile
 
                     this.terrainStats = [];
+                    this.numSteps = numSteps;
                     let globalMinElev = Infinity;
                     let globalMaxElev = -Infinity;
                     let maxVariance = 0;
@@ -3980,7 +4002,14 @@
                         }
                         const variance = varianceSum / colValues.length;
 
-                        this.terrainStats.push({ avg, min, max, variance, col });
+                        // Sample N→S profile for arp pattern (4 evenly spaced points)
+                        const arpProfile = [];
+                        for (let a = 0; a < arpNotes; a++) {
+                            const rowIdx = Math.floor((a / (arpNotes - 1)) * (numRows - 1));
+                            arpProfile.push(colValues[rowIdx]);
+                        }
+
+                        this.terrainStats.push({ avg, min, max, variance, col, arpProfile });
 
                         // Track global ranges
                         if (avg < globalMinElev) globalMinElev = avg;
@@ -3992,7 +4021,7 @@
                     this.terrainMaxElev = globalMaxElev;
                     this.terrainMaxVariance = maxVariance || 1;
 
-                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
+                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), ${arpNotes}-note arps, elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
                 }
             }
 
