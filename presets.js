@@ -198,9 +198,9 @@ const FACTORY_PRESETS = [
     },
 
     {
-        name: "Icelandic Highlands",
-        description: "Dramatic rhyolite mountains with icy, crystalline textures",
-        location: { lat: 63.9930, lng: -19.0615 },
+        name: "Norwegian Fjords",
+        description: "Dramatic coastal cliffs with icy, crystalline textures",
+        location: { lat: 62.1047, lng: 7.0940 },
         areaSize: "5",
         volume: 0.7,
 
