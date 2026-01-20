@@ -1340,6 +1340,14 @@
                         >
                     </div>
                     <div class="column-param">
+                        <label>Pattern</label>
+                        <select id="gen-pattern" data-tooltip="Sequence pattern">
+                            <option value="random">Rnd</option>
+                            <option value="ascending">Up</option>
+                            <option value="descending">Dn</option>
+                            <option value="pendulum">Pnd</option>
+                            <option value="terrain">Terrain</option>
+                        </select>
                         <label>Length</label>
                         <select id="gen-length" data-tooltip="Note length">
                             <option value="0.25">1/16</option>
@@ -1348,13 +1356,19 @@
                             <option value="2">1/2</option>
                             <option value="4">1</option>
                         </select>
-                        <label>Pattern</label>
-                        <select id="gen-pattern" data-tooltip="Sequence pattern">
-                            <option value="random">Rnd</option>
-                            <option value="ascending">Up</option>
-                            <option value="descending">Dn</option>
-                            <option value="pendulum">Pnd</option>
-                            <option value="terrain">Terrain</option>
+                    </div>
+                    <div class="column-param terrain-arp-controls hidden" id="terrain-arp-controls">
+                        <label>Arp</label>
+                        <select id="terrain-arp-mode" data-tooltip="Arpeggiator mode">
+                            <option value="off">Off</option>
+                            <option value="on" selected>On</option>
+                        </select>
+                        <label>Notes</label>
+                        <select id="terrain-arp-notes" data-tooltip="Notes per arp">
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4" selected>4</option>
+                            <option value="8">8</option>
                         </select>
                     </div>
                 </div>
@@ -3781,11 +3795,23 @@
                     this.activeNote = null;
 
                     // Terrain-driven sequencing
-                    this.terrainStats = null; // Array of 32 row stats
+                    this.terrainStats = null; // Array of 16 column stats
                     this.terrainMinElev = 0;
                     this.terrainMaxElev = 1;
                     this.terrainMaxVariance = 1;
-                    this.onTerrainStep = null; // Callback: (rowIndex, totalRows) => {}
+                    this.onTerrainStep = null; // Callback: (colIndex) => {}
+
+                    // Arp settings
+                    this.arpEnabled = true;
+                    this.arpNotes = 4;
+                }
+
+                setArpEnabled(enabled) {
+                    this.arpEnabled = enabled;
+                }
+
+                setArpNotes(notes) {
+                    this.arpNotes = notes;
                 }
 
                 setScaleManager(scaleManager) {
@@ -3871,7 +3897,7 @@
                             }
                             break;
                         case "terrain":
-                            // Terrain-driven: 16-step E→W sweep with 4-note arps from N→S profile
+                            // Terrain-driven: 16-step E→W sweep, optional arps from N→S profile
                             if (!this.terrainStats) {
                                 // Fallback to random if no terrain loaded
                                 note = notes[Math.floor(Math.random() * notes.length)];
@@ -3881,40 +3907,50 @@
                                 const stats = this.terrainStats[stepIndex];
                                 const elevRange = this.terrainMaxElev - this.terrainMinElev || 1;
 
-                                // Play arp: 4 notes derived from N→S terrain profile
-                                const arpProfile = stats.arpProfile;
-                                const beatDuration = 60000 / this.bpm;
-                                const arpNoteDuration = (beatDuration * this.noteLength) / arpProfile.length;
-
                                 // Base velocity from variance
                                 const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
                                 const baseVelocity = 0.4 + normalizedVariance * 0.5;
-
-                                // Schedule each arp note
-                                arpProfile.forEach((elev, arpIdx) => {
-                                    const normalizedElev = (elev - this.terrainMinElev) / elevRange;
-                                    const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
-                                    const arpNote = notes[Math.min(noteIndex, notes.length - 1)];
-                                    const delay = arpIdx * arpNoteDuration;
-
-                                    setTimeout(() => {
-                                        if (!this.enabled) return;
-                                        const id = `arp_${Date.now()}_${arpIdx}`;
-                                        this.onNoteOn(id, arpNote.frequency, baseVelocity);
-                                        setTimeout(() => {
-                                            this.onNoteOff(id);
-                                        }, arpNoteDuration * 0.9);
-                                    }, delay);
-                                });
 
                                 // Notify listener of current column
                                 if (this.onTerrainStep) {
                                     this.onTerrainStep(stepIndex);
                                 }
 
-                                this.currentNoteIndex++;
-                                // Return early - arp handles its own notes
-                                return;
+                                if (this.arpEnabled) {
+                                    // Play arp: N notes derived from N→S terrain profile
+                                    const numRows = this.numRows || 32;
+                                    const beatDuration = 60000 / this.bpm;
+                                    const arpNoteDuration = (beatDuration * this.noteLength) / this.arpNotes;
+
+                                    // Dynamically sample arp from column values
+                                    for (let a = 0; a < this.arpNotes; a++) {
+                                        const rowIdx = Math.floor((a / (this.arpNotes - 1)) * (numRows - 1));
+                                        const elev = stats.colValues[rowIdx];
+                                        const normalizedElev = (elev - this.terrainMinElev) / elevRange;
+                                        const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                        const arpNote = notes[Math.min(noteIndex, notes.length - 1)];
+                                        const delay = a * arpNoteDuration;
+
+                                        setTimeout(() => {
+                                            if (!this.enabled) return;
+                                            const id = `arp_${Date.now()}_${a}`;
+                                            this.onNoteOn(id, arpNote.frequency, baseVelocity);
+                                            setTimeout(() => {
+                                                this.onNoteOff(id);
+                                            }, arpNoteDuration * 0.9);
+                                        }, delay);
+                                    }
+
+                                    this.currentNoteIndex++;
+                                    return; // Arp handles its own notes
+                                } else {
+                                    // Single note mode: use average elevation
+                                    const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
+                                    const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                    note = notes[Math.min(noteIndex, notes.length - 1)];
+                                    this.terrainVelocity = baseVelocity;
+                                    this.currentNoteIndex++;
+                                }
                             }
                             break;
                     }
@@ -3965,10 +4001,10 @@
                     // Sample 16 columns evenly across the 256 E→W samples
                     const numSteps = 16;
                     const colStep = samplesPerRow / numSteps; // 16
-                    const arpNotes = 4; // 4-note arps from N→S profile
 
                     this.terrainStats = [];
                     this.numSteps = numSteps;
+                    this.numRows = numRows;
                     let globalMinElev = Infinity;
                     let globalMaxElev = -Infinity;
                     let maxVariance = 0;
@@ -4002,14 +4038,8 @@
                         }
                         const variance = varianceSum / colValues.length;
 
-                        // Sample N→S profile for arp pattern (4 evenly spaced points)
-                        const arpProfile = [];
-                        for (let a = 0; a < arpNotes; a++) {
-                            const rowIdx = Math.floor((a / (arpNotes - 1)) * (numRows - 1));
-                            arpProfile.push(colValues[rowIdx]);
-                        }
-
-                        this.terrainStats.push({ avg, min, max, variance, col, arpProfile });
+                        // Store full column values for dynamic arp sampling
+                        this.terrainStats.push({ avg, min, max, variance, col, colValues });
 
                         // Track global ranges
                         if (avg < globalMinElev) globalMinElev = avg;
@@ -4021,7 +4051,7 @@
                     this.terrainMaxElev = globalMaxElev;
                     this.terrainMaxVariance = maxVariance || 1;
 
-                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), ${arpNotes}-note arps, elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
+                    console.log(`Terrain sequencer: ${numSteps} columns (E→W), elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
                 }
             }
 
@@ -4754,10 +4784,26 @@
                         .getElementById("gen-pattern")
                         .addEventListener("change", (e) => {
                             this.sequencer.setPattern(e.target.value);
-                            // Hide sequencer line when switching away from terrain
-                            if (e.target.value !== "terrain") {
+                            const arpControls = document.getElementById("terrain-arp-controls");
+                            if (e.target.value === "terrain") {
+                                arpControls.classList.remove("hidden");
+                            } else {
+                                arpControls.classList.add("hidden");
                                 this.terrain3D.setSequencerColumn(-1);
                             }
+                        });
+
+                    // Terrain arp controls
+                    document
+                        .getElementById("terrain-arp-mode")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpEnabled(e.target.value === "on");
+                        });
+
+                    document
+                        .getElementById("terrain-arp-notes")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpNotes(parseInt(e.target.value));
                         });
 
                     // ADSR sliders
