@@ -1356,6 +1356,14 @@
                             <option value="2">1/2</option>
                             <option value="4">1</option>
                         </select>
+                        <span class="terrain-steps-control hidden" id="terrain-steps-wrapper">
+                            <label>Steps</label>
+                            <select id="terrain-steps" data-tooltip="Steps per cycle">
+                                <option value="8">8</option>
+                                <option value="16" selected>16</option>
+                                <option value="32">32</option>
+                            </select>
+                        </span>
                     </div>
                     <div class="column-param terrain-arp-controls hidden" id="terrain-arp-controls">
                         <label>Arp</label>
@@ -1369,6 +1377,19 @@
                             <option value="3">3</option>
                             <option value="4" selected>4</option>
                             <option value="8">8</option>
+                        </select>
+                        <label>Rate</label>
+                        <select id="terrain-arp-rate" data-tooltip="Arp note rate">
+                            <option value="0.125">1/32</option>
+                            <option value="0.25" selected>1/16</option>
+                            <option value="0.5">1/8</option>
+                        </select>
+                        <label>Dir</label>
+                        <select id="terrain-arp-dir" data-tooltip="Arp direction">
+                            <option value="up" selected>Up</option>
+                            <option value="down">Dn</option>
+                            <option value="updown">U-D</option>
+                            <option value="random">Rnd</option>
                         </select>
                     </div>
                 </div>
@@ -3092,8 +3113,9 @@
                 }
 
                 // Set the current sequencer column (-1 to hide)
-                setSequencerColumn(colIndex) {
+                setSequencerColumn(colIndex, totalSteps = 16) {
                     this.sequencerColIndex = colIndex;
+                    this.sequencerTotalSteps = totalSteps;
 
                     if (colIndex < 0) {
                         // Hide the line
@@ -3149,8 +3171,9 @@
                     const numFrames = this.frames.length;
                     const samplesPerFrame = this.frames[0].length;
 
-                    // Map step index (0-15) to sample index (0-255)
-                    const sampleIndex = Math.floor((this.sequencerColIndex / 15) * (samplesPerFrame - 1));
+                    // Map step index to sample index (0-255)
+                    const maxStepIdx = (this.sequencerTotalSteps || 16) - 1;
+                    const sampleIndex = Math.floor((this.sequencerColIndex / maxStepIdx) * (samplesPerFrame - 1));
                     // Map to x position (-0.5 to 0.5)
                     const x = (sampleIndex / (samplesPerFrame - 1)) - 0.5;
 
@@ -3795,15 +3818,18 @@
                     this.activeNote = null;
 
                     // Terrain-driven sequencing
-                    this.terrainStats = null; // Array of 16 column stats
+                    this.terrainStats = null; // Array of column stats
                     this.terrainMinElev = 0;
                     this.terrainMaxElev = 1;
                     this.terrainMaxVariance = 1;
+                    this.terrainSteps = 16; // Configurable: 8, 16, 32
                     this.onTerrainStep = null; // Callback: (colIndex) => {}
 
                     // Arp settings
                     this.arpEnabled = true;
                     this.arpNotes = 4;
+                    this.arpRate = 0.25; // In beats (1/16 = 0.25)
+                    this.arpDirection = "up"; // up, down, updown, random
                 }
 
                 setArpEnabled(enabled) {
@@ -3812,6 +3838,22 @@
 
                 setArpNotes(notes) {
                     this.arpNotes = notes;
+                }
+
+                setArpRate(rate) {
+                    this.arpRate = rate;
+                }
+
+                setArpDirection(dir) {
+                    this.arpDirection = dir;
+                }
+
+                setTerrainSteps(steps) {
+                    this.terrainSteps = steps;
+                    // Recompute terrain stats if we have raw data
+                    if (this.rawElevations) {
+                        this.setTerrainData(this.rawElevations);
+                    }
                 }
 
                 setScaleManager(scaleManager) {
@@ -3911,35 +3953,64 @@
                                 const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
                                 const baseVelocity = 0.4 + normalizedVariance * 0.5;
 
-                                // Notify listener of current column
+                                // Notify listener of current column and total steps
                                 if (this.onTerrainStep) {
-                                    this.onTerrainStep(stepIndex);
+                                    this.onTerrainStep(stepIndex, numSteps);
                                 }
 
                                 if (this.arpEnabled) {
                                     // Play arp: N notes derived from N→S terrain profile
                                     const numRows = this.numRows || 32;
                                     const beatDuration = 60000 / this.bpm;
-                                    const arpNoteDuration = (beatDuration * this.noteLength) / this.arpNotes;
+                                    // Arp rate is independent of step length
+                                    const arpNoteDuration = beatDuration * this.arpRate;
 
-                                    // Dynamically sample arp from column values
-                                    for (let a = 0; a < this.arpNotes; a++) {
+                                    // Build arp indices based on direction
+                                    let arpIndices = [];
+                                    for (let i = 0; i < this.arpNotes; i++) {
+                                        arpIndices.push(i);
+                                    }
+
+                                    switch (this.arpDirection) {
+                                        case "down":
+                                            arpIndices.reverse();
+                                            break;
+                                        case "updown":
+                                            // 0,1,2,3,2,1 for 4 notes
+                                            const updown = [...arpIndices];
+                                            for (let i = this.arpNotes - 2; i > 0; i--) {
+                                                updown.push(i);
+                                            }
+                                            arpIndices = updown;
+                                            break;
+                                        case "random":
+                                            // Fisher-Yates shuffle
+                                            for (let i = arpIndices.length - 1; i > 0; i--) {
+                                                const j = Math.floor(Math.random() * (i + 1));
+                                                [arpIndices[i], arpIndices[j]] = [arpIndices[j], arpIndices[i]];
+                                            }
+                                            break;
+                                        // "up" is default, no change needed
+                                    }
+
+                                    // Schedule arp notes
+                                    arpIndices.forEach((a, scheduleIdx) => {
                                         const rowIdx = Math.floor((a / (this.arpNotes - 1)) * (numRows - 1));
                                         const elev = stats.colValues[rowIdx];
                                         const normalizedElev = (elev - this.terrainMinElev) / elevRange;
                                         const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
                                         const arpNote = notes[Math.min(noteIndex, notes.length - 1)];
-                                        const delay = a * arpNoteDuration;
+                                        const delay = scheduleIdx * arpNoteDuration;
 
                                         setTimeout(() => {
                                             if (!this.enabled) return;
-                                            const id = `arp_${Date.now()}_${a}`;
+                                            const id = `arp_${Date.now()}_${scheduleIdx}`;
                                             this.onNoteOn(id, arpNote.frequency, baseVelocity);
                                             setTimeout(() => {
                                                 this.onNoteOff(id);
                                             }, arpNoteDuration * 0.9);
                                         }, delay);
-                                    }
+                                    });
 
                                     this.currentNoteIndex++;
                                     return; // Arp handles its own notes
@@ -3991,16 +4062,20 @@
                 }
 
                 // Compute statistics for each terrain column (E→W sweep)
-                // Called when new terrain is loaded
+                // Called when new terrain is loaded or steps changes
                 setTerrainData(rawElevations, samplesPerRow = 256, numRows = 32) {
                     if (!rawElevations || rawElevations.length < samplesPerRow * numRows) {
                         this.terrainStats = null;
                         return;
                     }
 
-                    // Sample 16 columns evenly across the 256 E→W samples
-                    const numSteps = 16;
-                    const colStep = samplesPerRow / numSteps; // 16
+                    // Store raw data for recomputing when steps changes
+                    this.rawElevations = rawElevations;
+                    this.samplesPerRow = samplesPerRow;
+
+                    // Sample columns evenly across the 256 E→W samples
+                    const numSteps = this.terrainSteps || 16;
+                    const colStep = samplesPerRow / numSteps;
 
                     this.terrainStats = [];
                     this.numSteps = numSteps;
@@ -4393,8 +4468,8 @@
                     this.sequencer.setScaleManager(this.scaleManager);
 
                     // Terrain step indicator callback - update 3D visualization
-                    this.sequencer.onTerrainStep = (colIndex) => {
-                        this.terrain3D.setSequencerColumn(colIndex);
+                    this.sequencer.onTerrainStep = (colIndex, totalSteps) => {
+                        this.terrain3D.setSequencerColumn(colIndex, totalSteps);
                     };
 
                     // Initialize modulation system
@@ -4785,12 +4860,22 @@
                         .addEventListener("change", (e) => {
                             this.sequencer.setPattern(e.target.value);
                             const arpControls = document.getElementById("terrain-arp-controls");
+                            const stepsControl = document.getElementById("terrain-steps-wrapper");
                             if (e.target.value === "terrain") {
                                 arpControls.classList.remove("hidden");
+                                stepsControl.classList.remove("hidden");
                             } else {
                                 arpControls.classList.add("hidden");
+                                stepsControl.classList.add("hidden");
                                 this.terrain3D.setSequencerColumn(-1);
                             }
+                        });
+
+                    // Terrain steps control
+                    document
+                        .getElementById("terrain-steps")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setTerrainSteps(parseInt(e.target.value));
                         });
 
                     // Terrain arp controls
@@ -4804,6 +4889,18 @@
                         .getElementById("terrain-arp-notes")
                         .addEventListener("change", (e) => {
                             this.sequencer.setArpNotes(parseInt(e.target.value));
+                        });
+
+                    document
+                        .getElementById("terrain-arp-rate")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpRate(parseFloat(e.target.value));
+                        });
+
+                    document
+                        .getElementById("terrain-arp-dir")
+                        .addEventListener("change", (e) => {
+                            this.sequencer.setArpDirection(e.target.value);
                         });
 
                     // ADSR sliders
