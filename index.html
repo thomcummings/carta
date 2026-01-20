@@ -1354,6 +1354,7 @@
                             <option value="ascending">Up</option>
                             <option value="descending">Dn</option>
                             <option value="pendulum">Pnd</option>
+                            <option value="terrain">Terrain</option>
                         </select>
                     </div>
                 </div>
@@ -3683,6 +3684,12 @@
                     this.pendulumDirection = 1;
                     this.intervalId = null;
                     this.activeNote = null;
+
+                    // Terrain-driven sequencing
+                    this.terrainStats = null; // Array of 32 row stats
+                    this.terrainMinElev = 0;
+                    this.terrainMaxElev = 1;
+                    this.terrainMaxVariance = 1;
                 }
 
                 setScaleManager(scaleManager) {
@@ -3767,12 +3774,38 @@
                                 this.currentNoteIndex = 0;
                             }
                             break;
+                        case "terrain":
+                            // Terrain-driven: step through 32 rows, elevation = pitch
+                            if (!this.terrainStats) {
+                                // Fallback to random if no terrain loaded
+                                note = notes[Math.floor(Math.random() * notes.length)];
+                            } else {
+                                const rowIndex = this.currentNoteIndex % 32;
+                                const stats = this.terrainStats[rowIndex];
+
+                                // Map row's average elevation to note index
+                                const elevRange = this.terrainMaxElev - this.terrainMinElev || 1;
+                                const normalizedElev = (stats.avg - this.terrainMinElev) / elevRange;
+                                const noteIndex = Math.floor(normalizedElev * (notes.length - 1));
+                                note = notes[Math.min(noteIndex, notes.length - 1)];
+
+                                // Store velocity based on variance (rougher = louder)
+                                const normalizedVariance = Math.sqrt(stats.variance) / Math.sqrt(this.terrainMaxVariance);
+                                this.terrainVelocity = 0.4 + normalizedVariance * 0.5; // Range 0.4 to 0.9
+
+                                this.currentNoteIndex++;
+                            }
+                            break;
                     }
 
                     if (note) {
                         const id = `gen_${Date.now()}`;
                         this.activeNote = { id, note };
-                        this.onNoteOn(id, note.frequency, 0.7);
+                        // Use terrain velocity if in terrain mode, otherwise default
+                        const velocity = this.pattern === "terrain" && this.terrainVelocity
+                            ? this.terrainVelocity
+                            : 0.7;
+                        this.onNoteOn(id, note.frequency, velocity);
                     }
                 }
 
@@ -3798,6 +3831,57 @@
                     this.pattern = pattern;
                     this.currentNoteIndex = 0;
                     this.pendulumDirection = 1;
+                }
+
+                // Compute statistics for each terrain row (latitude band)
+                // Called when new terrain is loaded
+                setTerrainData(rawElevations, samplesPerRow = 256, numRows = 32) {
+                    if (!rawElevations || rawElevations.length < samplesPerRow * numRows) {
+                        this.terrainStats = null;
+                        return;
+                    }
+
+                    this.terrainStats = [];
+                    let globalMinElev = Infinity;
+                    let globalMaxElev = -Infinity;
+                    let maxVariance = 0;
+
+                    for (let row = 0; row < numRows; row++) {
+                        const start = row * samplesPerRow;
+                        const rowData = rawElevations.slice(start, start + samplesPerRow);
+
+                        // Calculate average elevation for this row
+                        let sum = 0;
+                        let min = Infinity;
+                        let max = -Infinity;
+                        for (let i = 0; i < rowData.length; i++) {
+                            const val = rowData[i];
+                            sum += val;
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        const avg = sum / rowData.length;
+
+                        // Calculate variance (roughness)
+                        let varianceSum = 0;
+                        for (let i = 0; i < rowData.length; i++) {
+                            varianceSum += (rowData[i] - avg) ** 2;
+                        }
+                        const variance = varianceSum / rowData.length;
+
+                        this.terrainStats.push({ avg, min, max, variance });
+
+                        // Track global ranges
+                        if (avg < globalMinElev) globalMinElev = avg;
+                        if (avg > globalMaxElev) globalMaxElev = avg;
+                        if (variance > maxVariance) maxVariance = variance;
+                    }
+
+                    this.terrainMinElev = globalMinElev;
+                    this.terrainMaxElev = globalMaxElev;
+                    this.terrainMaxVariance = maxVariance || 1;
+
+                    console.log(`Terrain sequencer: ${numRows} rows, elevation ${Math.round(globalMinElev)}m - ${Math.round(globalMaxElev)}m`);
                 }
             }
 
@@ -4770,6 +4854,9 @@
 
                         // Store raw elevations for intensity re-processing
                         this.rawElevations = this.wavetableData.rawElevations;
+
+                        // Update sequencer with terrain data for terrain-driven patterns
+                        this.sequencer.setTerrainData(this.rawElevations);
 
                         // Load into audio engine
                         this.audio.loadWavetable(this.wavetableData.frames);
