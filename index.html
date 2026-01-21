@@ -132,6 +132,139 @@
                 border-color: var(--text);
             }
 
+            /* Icon buttons (theme toggle, info) */
+            .icon-btn {
+                background: none;
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 6px;
+                cursor: pointer;
+                transition: border-color 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+            }
+
+            .icon-btn:hover {
+                border-color: var(--text);
+            }
+
+            .icon-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            /* Info Modal */
+            .info-modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 3000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.2s, visibility 0.2s;
+            }
+
+            .info-modal-overlay.visible {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .light-mode .info-modal-overlay {
+                background: rgba(255, 255, 255, 0.85);
+            }
+
+            .info-modal {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                max-width: 520px;
+                width: calc(100% - 32px);
+                padding: 32px;
+                position: relative;
+                transform: translateY(10px);
+                transition: transform 0.2s;
+            }
+
+            .info-modal-overlay.visible .info-modal {
+                transform: translateY(0);
+            }
+
+            .info-modal-close {
+                position: absolute;
+                top: 12px;
+                right: 12px;
+                background: none;
+                border: none;
+                color: var(--text-muted);
+                cursor: pointer;
+                padding: 4px;
+                font-size: 18px;
+                line-height: 1;
+                transition: color 0.2s;
+            }
+
+            .info-modal-close:hover {
+                color: var(--text);
+            }
+
+            .info-modal-tagline {
+                font-size: 13px;
+                line-height: 1.6;
+                margin-bottom: 24px;
+                font-style: italic;
+                color: var(--text);
+            }
+
+            .info-modal hr {
+                border: none;
+                border-top: 1px solid var(--border);
+                margin: 20px 0;
+            }
+
+            .info-modal-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .info-modal-list li {
+                font-size: 11px;
+                line-height: 1.8;
+                color: var(--text-muted);
+                padding-left: 16px;
+                position: relative;
+            }
+
+            .info-modal-list li::before {
+                content: "•";
+                position: absolute;
+                left: 0;
+                color: var(--text-muted);
+            }
+
+            .info-modal-footer {
+                font-size: 10px;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+
+            .info-modal-footer a {
+                color: var(--text);
+                text-decoration: none;
+                border-bottom: 1px solid var(--border);
+                transition: border-color 0.2s;
+            }
+
+            .info-modal-footer a:hover {
+                border-color: var(--text);
+            }
+
             /* Preset dropdown */
             .preset-select {
                 background: var(--surface);
@@ -985,7 +1118,7 @@
                 }
 
                 /* Hide theme toggle in header on mobile - moved to footer */
-                .header-controls .theme-toggle {
+                .header-controls #theme-toggle {
                     display: none;
                 }
 
@@ -1386,8 +1519,28 @@
                             data-tooltip="Master volume"
                         />
                     </div>
-                    <button class="theme-toggle" id="theme-toggle" data-tooltip="Toggle theme">
-                        Light
+                    <button class="icon-btn" id="theme-toggle" data-tooltip="Toggle theme">
+                        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="info-btn" data-tooltip="About Carta">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
                     </button>
                 </div>
             </header>
@@ -2002,6 +2155,30 @@
                 </div>
                 <button class="theme-toggle-mobile" id="theme-toggle-mobile">Light</button>
             </footer>
+
+            <!-- Info Modal -->
+            <div class="info-modal-overlay" id="info-modal-overlay">
+                <div class="info-modal">
+                    <button class="info-modal-close" id="info-modal-close">&times;</button>
+                    <p class="info-modal-tagline">
+                        Carta is a topographic wavetable synth, making sound inspired by the geography of place.
+                    </p>
+                    <hr />
+                    <ul class="info-modal-list">
+                        <li>Click anywhere on the map to sample terrain</li>
+                        <li>Terrain elevation becomes your waveform</li>
+                        <li>Adjust intensity to blend with a flat waveform</li>
+                        <li>Morph the z-axis to adjust the waveform slice</li>
+                        <li>Shape your sound with modulation and effects</li>
+                        <li>Enable generative or terrain-based sequencer</li>
+                        <li>Connect MIDI to play with external controllers</li>
+                    </ul>
+                    <hr />
+                    <p class="info-modal-footer">
+                        Built by <a href="https://thomcummings.com/projects" target="_blank" rel="noopener">Thom</a> in Jan 2025
+                    </p>
+                </div>
+            </div>
         </div>
 
         <!-- External libraries -->
@@ -4911,6 +5088,10 @@
                     // Apply initial theme based on system preference
                     if (this.isLightMode) {
                         document.body.classList.add("light-mode");
+                        // Set theme icons for light mode
+                        document.getElementById("theme-icon-sun").style.display = "none";
+                        document.getElementById("theme-icon-moon").style.display = "block";
+                        document.getElementById("theme-toggle-mobile").textContent = "Dark";
                     }
 
                     // Initialize 3D terrain display
@@ -5448,6 +5629,32 @@
                             this.toggleTheme();
                         });
 
+                    // Info modal
+                    const infoBtn = document.getElementById("info-btn");
+                    const infoOverlay = document.getElementById("info-modal-overlay");
+                    const infoClose = document.getElementById("info-modal-close");
+
+                    infoBtn.addEventListener("click", () => {
+                        infoOverlay.classList.add("visible");
+                    });
+
+                    infoClose.addEventListener("click", () => {
+                        infoOverlay.classList.remove("visible");
+                    });
+
+                    infoOverlay.addEventListener("click", (e) => {
+                        if (e.target === infoOverlay) {
+                            infoOverlay.classList.remove("visible");
+                        }
+                    });
+
+                    // Close modal on Escape key
+                    document.addEventListener("keydown", (e) => {
+                        if (e.key === "Escape" && infoOverlay.classList.contains("visible")) {
+                            infoOverlay.classList.remove("visible");
+                        }
+                    });
+
                     // Mobile accordion for column sections
                     this.initMobileAccordion();
 
@@ -5528,8 +5735,18 @@
                         this.isLightMode,
                     );
                     const themeText = this.isLightMode ? "Dark" : "Light";
-                    document.getElementById("theme-toggle").textContent = themeText;
                     document.getElementById("theme-toggle-mobile").textContent = themeText;
+
+                    // Toggle theme icons
+                    const sunIcon = document.getElementById("theme-icon-sun");
+                    const moonIcon = document.getElementById("theme-icon-moon");
+                    if (this.isLightMode) {
+                        sunIcon.style.display = "none";
+                        moonIcon.style.display = "block";
+                    } else {
+                        sunIcon.style.display = "block";
+                        moonIcon.style.display = "none";
+                    }
 
                     this.terrain3D.setLightMode(this.isLightMode);
                     this.waveformDisplay.setLightMode(this.isLightMode);
