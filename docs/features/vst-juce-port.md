@@ -27,6 +27,309 @@ Port Carta terrain wavetable synthesizer to a cross-platform VST3/AU plugin usin
 
 ---
 
+## Data Schemas
+
+### Plugin Parameters (AudioProcessorValueTreeState)
+
+All automatable parameters registered with JUCE's parameter system:
+
+```cpp
+// Parameter IDs and ranges
+const juce::ParameterID PARAM_MORPH_POSITION   { "morphPosition", 1 };   // 0.0 - 1.0
+const juce::ParameterID PARAM_FILTER_CUTOFF    { "filterCutoff", 1 };    // 20.0 - 20000.0 Hz
+const juce::ParameterID PARAM_FILTER_RESONANCE { "filterResonance", 1 }; // 0.0 - 30.0 (Q)
+const juce::ParameterID PARAM_ATTACK           { "attack", 1 };          // 0.001 - 2.0 seconds
+const juce::ParameterID PARAM_DECAY            { "decay", 1 };           // 0.001 - 2.0 seconds
+const juce::ParameterID PARAM_SUSTAIN          { "sustain", 1 };         // 0.0 - 1.0
+const juce::ParameterID PARAM_RELEASE          { "release", 1 };         // 0.001 - 5.0 seconds
+const juce::ParameterID PARAM_LFO1_RATE        { "lfo1Rate", 1 };        // 0.05 - 10.0 Hz
+const juce::ParameterID PARAM_LFO1_SHAPE       { "lfo1Shape", 1 };       // 0-4 (enum index)
+const juce::ParameterID PARAM_LFO2_RATE        { "lfo2Rate", 1 };        // 0.05 - 10.0 Hz
+const juce::ParameterID PARAM_LFO2_SHAPE       { "lfo2Shape", 1 };       // 0-4 (enum index)
+const juce::ParameterID PARAM_MORPH_MOD_SRC    { "morphModSource", 1 };  // 0-4 (enum: None/LFO1/LFO2/ModWheel/Velocity)
+const juce::ParameterID PARAM_MORPH_MOD_RANGE  { "morphModRange", 1 };   // 0.0 - 1.0
+const juce::ParameterID PARAM_MORPH_MOD_OFFSET { "morphModOffset", 1 };  // 0.0 - 1.0
+const juce::ParameterID PARAM_FILTER_MOD_SRC   { "filterModSource", 1 }; // 0-4 (enum)
+const juce::ParameterID PARAM_FILTER_MOD_RANGE { "filterModRange", 1 };  // 0.0 - 1.0
+const juce::ParameterID PARAM_MASTER_VOLUME    { "masterVolume", 1 };    // 0.0 - 1.0
+```
+
+### Preset File Format (JSON)
+
+Stored in `~/Library/Application Support/Carta/Presets/` (macOS) or `%APPDATA%/Carta/Presets/` (Windows).
+
+```json
+{
+  "version": 1,
+  "name": "Swiss Alps",
+  "description": "Jagged peaks of the Swiss mountains",
+  "location": {
+    "lat": 46.8182,
+    "lng": 8.2275,
+    "gridSizeKm": 10.0
+  },
+  "wavetable": {
+    "frames": 32,
+    "samplesPerFrame": 256,
+    "data": "<base64 encoded float array, 32×256×4 bytes>"
+  },
+  "parameters": {
+    "morphPosition": 0.5,
+    "filterCutoff": 8000.0,
+    "filterResonance": 2.0,
+    "attack": 0.01,
+    "decay": 0.2,
+    "sustain": 0.7,
+    "release": 0.5,
+    "lfo1Rate": 0.5,
+    "lfo1Shape": 0,
+    "lfo2Rate": 1.2,
+    "lfo2Shape": 1,
+    "morphModSource": 1,
+    "morphModRange": 0.3,
+    "morphModOffset": 0.35,
+    "filterModSource": 0,
+    "filterModRange": 0.0,
+    "masterVolume": 0.8
+  }
+}
+```
+
+### Plugin State (getStateInformation)
+
+Binary format using JUCE's ValueTree serialization:
+
+```cpp
+void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
+    auto state = parameters.copyState();
+
+    // Add wavetable data as child
+    juce::ValueTree wtState("wavetable");
+    wtState.setProperty("lat", currentLocation.lat, nullptr);
+    wtState.setProperty("lng", currentLocation.lng, nullptr);
+    wtState.setProperty("gridSizeKm", currentLocation.gridSizeKm, nullptr);
+    wtState.setProperty("data", wavetableToBase64(activeWavetable), nullptr);
+    state.addChild(wtState, -1, nullptr);
+
+    // Serialize to binary
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
+}
+```
+
+**What gets saved:**
+- All parameter values (via AudioProcessorValueTreeState)
+- Current wavetable data (base64 encoded)
+- Location coordinates (for display/re-fetch)
+
+**What does NOT get saved:**
+- Terrain cache (regenerated on demand)
+- UI state (window size handled separately by DAW)
+
+### Elevation API Response Format
+
+**Open-Elevation API** (`POST /api/v1/lookup`):
+```json
+{
+  "results": [
+    { "latitude": 46.8182, "longitude": 8.2275, "elevation": 1523.0 },
+    { "latitude": 46.8183, "longitude": 8.2276, "elevation": 1518.5 },
+    { "latitude": 46.8184, "longitude": 8.2277, "elevation": null }
+  ]
+}
+```
+
+**Handling null elevations:** Use 0.0 as fallback (matches web version behavior: `r.elevation ?? 0`).
+
+**OpenTopoData fallback** (`POST /v1/srtm30m`):
+```json
+{
+  "results": [
+    { "elevation": 1523.0, "location": { "lat": 46.8182, "lng": 8.2275 } }
+  ],
+  "status": "OK"
+}
+```
+
+---
+
+## Concurrency Model
+
+### Thread Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         JUCE Message Thread                      │
+│  - UI rendering and interaction                                  │
+│  - Map click events                                              │
+│  - Parameter changes from UI                                     │
+│  - Preset loading                                                │
+└─────────────────────────────────┬────────────────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+┌───────────────────────────────┐  ┌───────────────────────────────┐
+│      Background Thread        │  │       Audio Thread            │
+│  (juce::ThreadPool)           │  │  (processBlock callback)      │
+│                               │  │                               │
+│  - HTTP terrain fetching      │  │  - Voice processing           │
+│  - Wavetable generation       │  │  - Filter, envelope, LFO      │
+│  - FFT processing             │  │  - Sample output              │
+│                               │  │                               │
+│  Posts result to message      │  │  Reads from:                  │
+│  thread when complete         │  │  - activeWavetable (atomic)   │
+│                               │  │  - parameters (atomic floats) │
+└───────────────────────────────┘  └───────────────────────────────┘
+```
+
+### Wavetable Swapping (Lock-Free)
+
+```cpp
+class PluginProcessor {
+private:
+    // Double-buffer for lock-free wavetable swap
+    std::array<WavetableGenerator::Wavetable, 2> wavetableBuffers;
+    std::atomic<int> activeBufferIndex { 0 };
+    std::atomic<bool> wavetableReady { false };
+
+    // Pending wavetable from background thread
+    std::atomic<bool> pendingWavetableReady { false };
+    int pendingBufferIndex = 1;
+
+public:
+    // Called from background thread when terrain fetch completes
+    void onWavetableGenerated(WavetableGenerator::Wavetable&& newWavetable) {
+        // Write to inactive buffer
+        int inactiveIndex = 1 - activeBufferIndex.load();
+        wavetableBuffers[inactiveIndex] = std::move(newWavetable);
+        pendingBufferIndex = inactiveIndex;
+        pendingWavetableReady.store(true);
+    }
+
+    // Called at start of processBlock (audio thread)
+    void checkForPendingWavetable() {
+        if (pendingWavetableReady.load()) {
+            activeBufferIndex.store(pendingBufferIndex);
+            wavetableReady.store(true);
+            pendingWavetableReady.store(false);
+
+            // Update all voices with new wavetable pointer
+            for (auto& voice : voices) {
+                voice.setWavetable(&wavetableBuffers[activeBufferIndex.load()]);
+            }
+        }
+    }
+
+    // Called from voices during processing
+    const WavetableGenerator::Wavetable* getActiveWavetable() const {
+        if (!wavetableReady.load()) return nullptr;
+        return &wavetableBuffers[activeBufferIndex.load()];
+    }
+};
+```
+
+### Fetch Request Handling
+
+```cpp
+enum class FetchState { Idle, Fetching, Complete, Error };
+std::atomic<FetchState> fetchState { FetchState::Idle };
+
+void onMapClick(double lat, double lng) {
+    // If already fetching, ignore (don't queue multiple requests)
+    FetchState expected = FetchState::Idle;
+    if (!fetchState.compare_exchange_strong(expected, FetchState::Fetching)) {
+        // Already fetching - show "please wait" in UI
+        return;
+    }
+
+    // Start background fetch
+    threadPool.addJob([this, lat, lng]() {
+        auto result = terrainService.fetchTerrain(lat, lng, gridSizeKm);
+        if (result.success) {
+            auto wavetable = wavetableGenerator.generate(result.elevations);
+            onWavetableGenerated(std::move(wavetable));
+            fetchState.store(FetchState::Complete);
+        } else {
+            lastError = result.errorMessage;
+            fetchState.store(FetchState::Error);
+        }
+        // Trigger UI update on message thread
+        juce::MessageManager::callAsync([this]() { updateUI(); });
+    });
+}
+```
+
+### MIDI Note Before Wavetable Loaded
+
+**Decision:** Play silence (no sound) until wavetable is ready.
+
+```cpp
+void Voice::process(float* outputL, float* outputR, int numSamples) {
+    const auto* wt = processor.getActiveWavetable();
+    if (wt == nullptr) {
+        // No wavetable loaded - output silence
+        std::fill(outputL, outputL + numSamples, 0.0f);
+        std::fill(outputR, outputR + numSamples, 0.0f);
+        return;
+    }
+    // Normal processing...
+}
+```
+
+**Rationale:** A placeholder sine wave would be audibly jarring when the real wavetable loads. Silence is less disruptive. Factory presets ensure the plugin loads with a valid wavetable.
+
+---
+
+## Error Handling Strategy
+
+| Scenario | Behavior | User Feedback |
+|----------|----------|---------------|
+| **MIDI note, no wavetable** | Output silence | Status: "Loading terrain..." or "Select a location" |
+| **Elevation API timeout** | Retry once, then try fallback API | Status: "Retrying..." then "Using backup service..." |
+| **Fallback API also fails** | Abort fetch, keep current wavetable | Status: "Fetch failed: [error]. Try again?" |
+| **API returns partial nulls** | Replace null with 0.0 | No message (silent fallback) |
+| **Chunk N of M fails** | Retry that chunk 3× with backoff | Status: "Retrying chunk N..." |
+| **All retries exhausted** | Fail entire fetch | Status: "Network error. Check connection." |
+| **WebBrowserComponent init fails** | Hide map, show preset-only mode | Status: "Map unavailable. Select from presets." |
+| **Sample rate change** | Recalculate all coefficients in prepareToPlay | No message (handled internally) |
+| **Invalid preset JSON** | Skip preset, log warning | Preset doesn't appear in browser |
+| **Wavetable data corrupted** | Fall back to sine wave wavetable | Status: "Preset corrupted. Using default." |
+
+### Error Recovery Flow
+
+```cpp
+void TerrainService::fetchWithRetry(const FetchRequest& request, int attempt = 0) {
+    const int MAX_RETRIES = 3;
+    const int BACKOFF_MS[] = { 0, 1000, 2000, 4000 };
+
+    if (attempt > 0) {
+        juce::Thread::sleep(BACKOFF_MS[std::min(attempt, 3)]);
+    }
+
+    auto result = doFetch(request, primaryAPI);
+
+    if (result.success) {
+        onComplete(result);
+        return;
+    }
+
+    if (attempt < MAX_RETRIES) {
+        // Retry same API
+        fetchWithRetry(request, attempt + 1);
+    } else {
+        // Try fallback API
+        result = doFetch(request, fallbackAPI);
+        if (result.success) {
+            onComplete(result);
+        } else {
+            onError("All elevation services unavailable");
+        }
+    }
+}
+```
+
+---
+
 ## Architecture
 
 ```
@@ -49,9 +352,8 @@ carta-vst/
 │   │   └── ModulationMatrix.h/cpp    # Source → destination routing
 │   │
 │   ├── Terrain/
-│   │   ├── TerrainService.h/cpp      # HTTP fetching, caching
-│   │   ├── ElevationAPI.h/cpp        # Open-Elevation + fallback
-│   │   └── GridGenerator.h/cpp       # Lat/lng → 32×256 grid
+│   │   ├── TerrainService.h/cpp      # HTTP fetching, caching, grid generation
+│   │   └── ElevationAPI.h/cpp        # Open-Elevation + fallback
 │   │
 │   ├── UI/
 │   │   ├── MapComponent.h/cpp        # WebBrowserComponent + Leaflet
@@ -65,11 +367,13 @@ carta-vst/
 │   │   └── CartaLookAndFeel.h/cpp    # Custom styling
 │   │
 │   └── Utility/
-│       ├── HTTPClient.h/cpp          # Async URL fetching
-│       └── FFTProcessor.h/cpp        # Waveform → harmonic conversion
+│       └── Base64.h/cpp              # Wavetable encoding for presets
 │
 ├── Resources/
 │   ├── MapView.html                  # Leaflet map (embedded)
+│   ├── leaflet/                      # Bundled Leaflet library (~40KB)
+│   │   ├── leaflet.js
+│   │   └── leaflet.css
 │   ├── Presets/                      # Factory presets (JSON)
 │   └── Fonts/                        # UI fonts
 │
@@ -87,13 +391,14 @@ carta-vst/
 
 JUCE's `WebBrowserComponent` embeds a system webview. We load a minimal HTML page with Leaflet and communicate via JavaScript bridge.
 
-**MapView.html** (embedded resource):
+**MapView.html** (embedded resource, Leaflet bundled locally):
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Leaflet CSS/JS bundled in Resources/leaflet/ -->
+  <link rel="stylesheet" href="leaflet/leaflet.css" />
+  <script src="leaflet/leaflet.js"></script>
   <style>
     #map { width: 100%; height: 100%; }
     body { margin: 0; }
@@ -443,6 +748,33 @@ private:
 
 ## Implementation Phases
 
+### Phase 0: Integration Validation (Pre-Implementation)
+
+**Goal:** Validate risky integrations before building core features.
+
+- [ ] Create minimal JUCE project with WebBrowserComponent
+- [ ] Load Leaflet map in WebBrowserComponent (macOS)
+- [ ] Load Leaflet map in WebBrowserComponent (Windows)
+- [ ] Test JavaScript bridge: click map → C++ callback
+- [ ] Test C++ → JavaScript: call setLocation()
+- [ ] Verify CDN-loaded Leaflet works (or bundle locally if not)
+- [ ] Test Open-Elevation API from JUCE (juce::URL)
+  - [ ] Verify response format matches expected schema
+  - [ ] Measure response time for 1000-point request
+  - [ ] Test chunked requests (8192 points / 1000 per chunk)
+  - [ ] Test rate limiting behavior (if any)
+- [ ] Test OpenTopoData fallback API
+- [ ] Document findings in `docs/learnings.md`
+
+**Deliverable:** Validation report confirming external integrations work, or documented workarounds needed.
+
+**Exit criteria:**
+- Map displays and responds to clicks on both platforms
+- Elevation data can be fetched for any coordinate
+- Known limitations documented
+
+---
+
 ### Phase 1: Project Setup & Basic Synthesis
 - [ ] Create JUCE project (CMake, VST3+AU targets)
 - [ ] Implement WavetableOscillator with hardcoded test wavetable
@@ -464,12 +796,11 @@ private:
 **Deliverable:** Filter sweeps and LFO modulation working
 
 ### Phase 3: Terrain Pipeline
-- [ ] Implement HTTPClient (async URL fetch)
-- [ ] Implement GridGenerator (lat/lng → coordinate grid)
-- [ ] Implement ElevationAPI (Open-Elevation + fallback)
-- [ ] Implement TerrainService (chunking, caching)
-- [ ] Implement WavetableGenerator (normalize + optional FFT)
+- [ ] Implement ElevationAPI (Open-Elevation + fallback, using juce::URL)
+- [ ] Implement TerrainService (grid generation, chunking, caching)
+- [ ] Implement WavetableGenerator (normalize + FFT band-limiting)
 - [ ] Test with hardcoded coordinates
+- [ ] Verify wavetable output matches web version for same location
 
 **Deliverable:** Can fetch terrain and generate wavetable from coordinates
 
@@ -580,12 +911,107 @@ private:
 
 ---
 
-## Open Questions
+## Design Decisions
 
-1. **Band-limiting strategy** — Full FFT per frame, or simpler anti-aliasing?
-2. **Wavetable file format** — Custom binary, or standard .wav with metadata?
-3. **Search in map** — Include geocoding search bar, or just click-to-select?
-4. **Intensity parameter** — Keep terrain intensity blending from web version?
+Formerly open questions, now resolved:
+
+### 1. Band-Limiting Strategy
+
+**Decision:** FFT-based band-limiting per frame (matching web version).
+
+**Rationale:** The web version uses `PeriodicWave` which is inherently band-limited via FFT. This prevents aliasing at high frequencies—critical for terrain-derived waveforms which often have sharp edges and high harmonic content.
+
+**Implementation:**
+```cpp
+// For each frame, convert time-domain waveform to frequency domain
+void WavetableGenerator::makeBandLimited(std::array<float, 256>& frame) {
+    // FFT the 256-sample waveform
+    juce::dsp::FFT fft(8);  // 2^8 = 256
+    std::array<std::complex<float>, 256> freqDomain;
+
+    fft.perform(frame.data(), freqDomain.data(), false);
+
+    // Zero out harmonics above Nyquist for the target fundamental
+    // (handled dynamically per-note in oscillator, or pre-compute multiple tables)
+
+    fft.perform(freqDomain.data(), frame.data(), true);
+}
+```
+
+**Trade-off:** Higher CPU at wavetable generation time (acceptable since it happens once per location fetch, not per sample).
+
+### 2. Wavetable File Format
+
+**Decision:** JSON preset with base64-encoded wavetable data.
+
+**Rationale:**
+- Human-readable metadata (name, location, parameters)
+- Self-contained (no separate .wav files to manage)
+- Easy to parse with JUCE's JSON utilities
+- Base64 overhead (~33%) acceptable for 32KB wavetables
+
+**Alternative considered:** Standard .wav with metadata in LIST chunk. Rejected because: requires custom chunk parsing, harder to include all synth parameters, less portable.
+
+### 3. Search in Map
+
+**Decision:** Click-to-select only for v1. Search bar deferred.
+
+**Rationale:**
+- Click-to-select covers 90% of use cases
+- Geocoding requires another API integration (Nominatim)
+- Adds UI complexity
+- Can be added in v2 if users request it
+
+### 4. Intensity Parameter
+
+**Decision:** Yes, keep terrain intensity blending.
+
+**Rationale:** It's a simple multiplier on the normalized waveform that provides useful timbral control. Users can blend between harsh (100%) and smoother (lower %) terrain influence.
+
+**Implementation:** Already in WavetableGenerator—`intensity` parameter (0.0-1.0) scales the normalized elevation values before storing in wavetable.
+
+### 5. Voice Stealing Algorithm
+
+**Decision:** Steal oldest voice in release stage, or oldest voice overall if none releasing.
+
+**Rationale:** Voices in release are already fading—stealing them is least audible. If all voices are sustaining, stealing the oldest preserves the most recently played notes.
+
+```cpp
+Voice* VoiceManager::findVoiceToSteal() {
+    Voice* oldest = nullptr;
+    Voice* oldestReleasing = nullptr;
+
+    for (auto& voice : voices) {
+        if (voice.isInReleaseStage()) {
+            if (!oldestReleasing || voice.noteOnTime < oldestReleasing->noteOnTime)
+                oldestReleasing = &voice;
+        }
+        if (!oldest || voice.noteOnTime < oldest->noteOnTime)
+            oldest = &voice;
+    }
+
+    return oldestReleasing ? oldestReleasing : oldest;
+}
+```
+
+### 6. Use JUCE Built-ins vs Custom Implementation
+
+**Decision:** Use JUCE utilities where available, custom only when matching web behavior requires it.
+
+| Component | Decision | Rationale |
+|-----------|----------|-----------|
+| HTTP client | `juce::URL` | Built-in, handles async, no reason to reimplement |
+| ADSR | Custom | Match web version's exact linear ramps |
+| Biquad filter | `juce::IIR::Coefficients` | Standard lowpass, no special behavior needed |
+| FFT | `juce::dsp::FFT` | Built-in, optimized |
+| JSON parsing | `juce::JSON` | Built-in |
+| Parameter system | `AudioProcessorValueTreeState` | JUCE standard, handles automation |
+
+### 7. Leaflet Loading
+
+**Decision:** Bundle Leaflet locally rather than CDN.
+
+**Rationale:** CDN requires internet to load the map library itself (not just tiles). Corporate firewalls, offline sessions, and paranoid users would break. Leaflet minified is ~40KB—trivial size cost for zero runtime dependency on CDN availability.
 
 ---
 
