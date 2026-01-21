@@ -2745,8 +2745,8 @@
                 }
 
                 setSize(value) {
-                    // value 0-1, affects delay times
-                    this.size = 0.5 + value * 1.5;
+                    // value 0-1, affects delay times (0.5x to 4x for ethereal ambient territory)
+                    this.size = 0.5 + value * 3.5;
                     this.combs.forEach((comb, i) => {
                         const newTime = this.combTunings[i] * this.size;
                         comb.delay.delayTime.setValueAtTime(
