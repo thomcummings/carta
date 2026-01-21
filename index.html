@@ -971,6 +971,7 @@
 
                 header h1 {
                     font-size: 12px;
+                    padding-left: 4px; /* Indent from edge */
                 }
 
                 .header-controls {
@@ -1070,18 +1071,40 @@
 
                 /* Touch-friendly slider size */
                 input[type="range"] {
-                    height: 24px;
+                    height: 20px;
                     cursor: pointer;
+                    -webkit-appearance: none;
+                    appearance: none;
+                    background: transparent;
+                }
+
+                input[type="range"]::-webkit-slider-runnable-track {
+                    height: 2px;
+                    background: var(--border);
                 }
 
                 input[type="range"]::-webkit-slider-thumb {
-                    width: 20px;
-                    height: 20px;
+                    -webkit-appearance: none;
+                    width: 14px;
+                    height: 14px;
+                    background: var(--text);
+                    border-radius: 50%;
+                    margin-top: -6px; /* Center thumb on track */
+                    cursor: pointer;
+                }
+
+                input[type="range"]::-moz-range-track {
+                    height: 2px;
+                    background: var(--border);
                 }
 
                 input[type="range"]::-moz-range-thumb {
-                    width: 20px;
-                    height: 20px;
+                    width: 14px;
+                    height: 14px;
+                    background: var(--text);
+                    border-radius: 50%;
+                    border: none;
+                    cursor: pointer;
                 }
 
                 /* Three columns - vertical stack with accordion */
@@ -1118,6 +1141,18 @@
 
                 .column.collapsed .column-header::after {
                     content: "+";
+                }
+
+                /* Sequencer header - has play button, needs more space */
+                #seq-column .column-header {
+                    padding-right: 52px; /* Room for play button + collapse indicator */
+                }
+
+                #seq-column .column-header .play-btn {
+                    position: absolute;
+                    right: 24px; /* Before the collapse indicator */
+                    top: 50%;
+                    transform: translateY(-50%);
                 }
 
                 /* Accordion content animation */
@@ -1246,20 +1281,34 @@
                     width: 50px;
                 }
 
-                /* Dual range slider - larger touch targets */
+                /* Dual range slider - wider and clearer on mobile */
                 .dual-range-slider {
-                    width: 100px;
-                    height: 32px;
+                    width: 120px;
+                    height: 28px;
+                    flex-shrink: 0;
+                }
+
+                .dual-range-slider input[type="range"] {
+                    height: 28px;
                 }
 
                 .dual-range-slider input[type="range"]::-webkit-slider-thumb {
-                    width: 16px;
-                    height: 16px;
+                    width: 12px;
+                    height: 12px;
+                    margin-top: -5px;
                 }
 
                 .dual-range-slider input[type="range"]::-moz-range-thumb {
-                    width: 16px;
-                    height: 16px;
+                    width: 12px;
+                    height: 12px;
+                }
+
+                .dual-range-slider .range-track {
+                    height: 3px;
+                }
+
+                .dual-range-slider .range-selected {
+                    height: 3px;
                 }
             }
 
