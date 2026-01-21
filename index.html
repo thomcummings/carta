@@ -2715,9 +2715,10 @@
                     this.preDelay.delayTime.value = 0.02;
 
                     // Input diffusion (allpass chain)
+                    // Feedback 0.35 (not 0.5) to reduce metallic coloration
                     this.inputDiffusion = [];
                     for (let i = 0; i < 2; i++) {
-                        const ap = this.createAllpass(0.005 + i * 0.003, 0.5);
+                        const ap = this.createAllpass(0.005 + i * 0.003, 0.35);
                         this.inputDiffusion.push(ap);
                     }
 
@@ -2886,7 +2887,8 @@
 
                     let lastNode = input;
                     for (const time of this.allpassTunings) {
-                        const ap = this.createAllpass(time * this.size, 0.5);
+                        // Feedback 0.35 (not 0.5) to reduce metallic coloration
+                        const ap = this.createAllpass(time * this.size, 0.35);
                         this.allpasses.push(ap);
                         lastNode.connect(ap.input);
                         lastNode = ap.output;
@@ -2920,8 +2922,8 @@
                 }
 
                 setSize(value) {
-                    // value 0-1, affects delay times
-                    this.size = 0.5 + value * 1.5;
+                    // value 0-1, affects delay times (0.5x to 4x for ethereal ambient territory)
+                    this.size = 0.5 + value * 3.5;
                     this.combs.forEach((comb, i) => {
                         const newTime = this.combTunings[i] * this.size;
                         comb.delay.delayTime.setValueAtTime(
