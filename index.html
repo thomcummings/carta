@@ -5558,22 +5558,30 @@
                     // Only enable accordion on mobile
                     const isMobile = window.matchMedia("(max-width: 768px)");
 
+                    // Store click handlers so we can remove them later
+                    const clickHandlers = new Map();
+
                     const setupAccordion = (mobile) => {
                         const columns = document.querySelectorAll(".column");
                         columns.forEach((column) => {
                             const header = column.querySelector(".column-header");
                             if (!header) return;
 
-                            // Remove existing listener if any
-                            const newHeader = header.cloneNode(true);
-                            header.parentNode.replaceChild(newHeader, header);
+                            // Remove existing accordion listener if any
+                            const existingHandler = clickHandlers.get(header);
+                            if (existingHandler) {
+                                header.removeEventListener("click", existingHandler);
+                                clickHandlers.delete(header);
+                            }
 
                             if (mobile.matches) {
-                                newHeader.addEventListener("click", (e) => {
+                                const handler = (e) => {
                                     // Don't toggle if clicking the play button
                                     if (e.target.closest(".play-btn")) return;
                                     column.classList.toggle("collapsed");
-                                });
+                                };
+                                header.addEventListener("click", handler);
+                                clickHandlers.set(header, handler);
                             }
                         });
                     };
