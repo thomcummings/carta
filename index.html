@@ -2862,6 +2862,12 @@
                         window.AudioContext || window.webkitAudioContext
                     )();
 
+                    // Resume audio context if suspended (browser autoplay policy)
+                    if (this.audioCtx.state === "suspended") {
+                        await this.audioCtx.resume();
+                    }
+                    console.log("[DEBUG] AudioContext state:", this.audioCtx.state);
+
                     // Create filter (low-pass)
                     this.filter = this.audioCtx.createBiquadFilter();
                     this.filter.type = "lowpass";
@@ -3049,6 +3055,7 @@
                 }
 
                 noteOn(noteId, frequency, velocity = 1.0) {
+                    console.log("[DEBUG] AudioEngine.noteOn:", noteId, frequency, velocity, "initialized:", this.initialized, "waves:", this.periodicWaves.length);
                     if (!this.initialized || this.periodicWaves.length === 0)
                         return;
 
@@ -3064,6 +3071,7 @@
 
                     voice.oscA.start();
                     voice.oscB.start();
+                    console.log("[DEBUG] Voice started, voices count:", this.voices.size);
                 }
 
                 // Adjusts voiceGain based on number of active voices to prevent clipping
@@ -4348,6 +4356,7 @@
                 }
 
                 start() {
+                    console.log("[DEBUG] Sequencer.start() called, intervalId:", this.intervalId);
                     if (this.intervalId) return;
                     this.enabled = true;
                     this.scheduleNext();
@@ -4366,13 +4375,16 @@
                 }
 
                 scheduleNext() {
+                    console.log("[DEBUG] scheduleNext() called, enabled:", this.enabled);
                     if (!this.enabled) return;
 
                     const beatDuration = 60000 / this.bpm;
                     const noteDuration = beatDuration * this.noteLength;
 
                     // Decide whether to play (probability check)
-                    if (Math.random() < this.probability) {
+                    const rand = Math.random();
+                    console.log("[DEBUG] probability check:", rand, "<", this.probability, "=", rand < this.probability);
+                    if (rand < this.probability) {
                         this.playNote();
                     }
 
@@ -4387,12 +4399,14 @@
                 }
 
                 playNote() {
+                    console.log("[DEBUG] playNote() called, scaleManager:", !!this.scaleManager);
                     if (!this.scaleManager) return;
 
                     const notes = this.scaleManager.getNotesInRange(
                         this.octaveLow,
                         this.octaveHigh,
                     );
+                    console.log("[DEBUG] notes in range:", notes.length, "octaves:", this.octaveLow, "-", this.octaveHigh);
                     if (notes.length === 0) return;
 
                     let note;
@@ -4520,7 +4534,10 @@
                         const velocity = this.pattern === "terrain" && this.terrainVelocity
                             ? this.terrainVelocity
                             : 0.7;
+                        console.log("[DEBUG] Calling onNoteOn:", id, note.frequency, velocity);
                         this.onNoteOn(id, note.frequency, velocity);
+                    } else {
+                        console.log("[DEBUG] No note selected, pattern:", this.pattern);
                     }
                 }
 
@@ -5283,7 +5300,9 @@
                                 this.sequencer.stop();
                             } else {
                                 // Play
+                                console.log("[DEBUG] Play button clicked, initializing audio...");
                                 this.audio.initialize().then(() => {
+                                    console.log("[DEBUG] Audio initialized, starting sequencer...");
                                     btn.classList.add("playing");
                                     icon.innerHTML =
                                         '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>';
@@ -5994,6 +6013,7 @@
                 }
 
                 async noteOn(noteId, frequency, velocity) {
+                    console.log("[DEBUG] App.noteOn:", noteId, frequency, velocity, "audio.initialized:", this.audio.initialized);
                     // Initialize audio on first interaction (browser requires user gesture)
                     if (!this.audio.initialized) {
                         await this.audio.initialize();
