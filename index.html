@@ -882,6 +882,11 @@
                 gap: 6px;
             }
 
+            /* Mobile theme toggle - hidden on desktop */
+            .theme-toggle-mobile {
+                display: none;
+            }
+
             .midi-indicator {
                 width: 6px;
                 height: 6px;
@@ -945,6 +950,366 @@
            ============================================================ */
             .hidden {
                 display: none !important;
+            }
+
+            /* ============================================================
+               MOBILE RESPONSIVE STYLES (< 768px)
+               ============================================================ */
+            @media (max-width: 768px) {
+                /* App container */
+                #app {
+                    padding: 8px;
+                    gap: 8px;
+                }
+
+                /* Header - compact layout */
+                header {
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    padding-bottom: 8px;
+                }
+
+                header h1 {
+                    font-size: 12px;
+                }
+
+                .header-controls {
+                    flex: 1;
+                    justify-content: flex-end;
+                    gap: 12px;
+                }
+
+                .header-controls .control-group label {
+                    display: none; /* Hide "Preset" and "Vol" labels on mobile */
+                }
+
+                /* Hide theme toggle in header on mobile - moved to footer */
+                .header-controls .theme-toggle {
+                    display: none;
+                }
+
+                /* Main content - stack vertically */
+                main {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    height: auto;
+                    min-height: 0;
+                }
+
+                /* Map section - full width, controlled height */
+                #map-section {
+                    min-height: 45vh;
+                    max-height: 50vh;
+                }
+
+                .map-search {
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    padding: 6px;
+                }
+
+                .map-search input {
+                    flex: 1 1 100%;
+                    min-width: 0;
+                }
+
+                .map-search select,
+                .map-search button {
+                    flex: 1;
+                    min-width: 0;
+                }
+
+                /* Visualization section - full width */
+                #visualization {
+                    min-height: 35vh;
+                    height: 35vh;
+                }
+
+                /* Waveform panel - smaller on mobile */
+                #waveform-panel {
+                    width: 100px;
+                    height: 60px;
+                    bottom: 8px;
+                    right: 8px;
+                }
+
+                /* Param rows - wrap on mobile */
+                .param-row {
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    padding: 10px;
+                }
+
+                .param-row .row-label {
+                    min-width: 45px;
+                    flex-shrink: 0;
+                }
+
+                .param-row .main-slider {
+                    flex: 1 1 calc(100% - 120px);
+                    min-width: 80px;
+                }
+
+                .param-row .param-value {
+                    min-width: 40px;
+                }
+
+                /* Secondary controls wrap to new line */
+                .param-row .row-divider {
+                    display: none;
+                }
+
+                .param-row .mod-select {
+                    order: 10;
+                }
+
+                .param-row .mini-param {
+                    order: 11;
+                }
+
+                /* Touch-friendly slider size */
+                input[type="range"] {
+                    height: 24px;
+                    cursor: pointer;
+                }
+
+                input[type="range"]::-webkit-slider-thumb {
+                    width: 20px;
+                    height: 20px;
+                }
+
+                input[type="range"]::-moz-range-thumb {
+                    width: 20px;
+                    height: 20px;
+                }
+
+                /* Three columns - vertical stack with accordion */
+                #three-columns {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1px;
+                    grid-template-columns: none;
+                }
+
+                .column {
+                    padding: 10px;
+                }
+
+                /* Accordion header styling */
+                .column-header {
+                    cursor: pointer;
+                    user-select: none;
+                    position: relative;
+                    padding-right: 24px;
+                }
+
+                .column-header::after {
+                    content: "−";
+                    position: absolute;
+                    right: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    font-size: 14px;
+                    font-weight: 300;
+                    color: var(--text-muted);
+                    transition: transform 0.2s;
+                }
+
+                .column.collapsed .column-header::after {
+                    content: "+";
+                }
+
+                /* Accordion content animation */
+                .column-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    overflow: hidden;
+                    max-height: 500px;
+                    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+                    opacity: 1;
+                }
+
+                .column.collapsed .column-content {
+                    max-height: 0;
+                    opacity: 0;
+                }
+
+                /* Column params - more space on mobile */
+                .column-param {
+                    min-height: 32px;
+                }
+
+                .column-param label {
+                    min-width: 50px;
+                }
+
+                .column-param input[type="range"] {
+                    flex: 1;
+                    min-width: 60px;
+                }
+
+                /* Sequencer specific - better touch targets */
+                .column-param select {
+                    min-height: 32px;
+                    font-size: 11px;
+                    padding: 4px 6px;
+                }
+
+                /* Terrain controls on mobile */
+                .terrain-steps-control,
+                .terrain-arp-controls {
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+
+                .terrain-steps-control label,
+                .terrain-arp-controls label {
+                    font-size: 9px;
+                    min-width: 32px;
+                }
+
+                .terrain-steps-control select,
+                .terrain-arp-controls select {
+                    min-width: 48px;
+                    max-width: none;
+                    font-size: 10px;
+                    padding: 4px;
+                }
+
+                /* Play button - larger touch target */
+                .play-btn {
+                    width: 28px;
+                    height: 28px;
+                }
+
+                /* Status bar / footer */
+                #status {
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    padding: 8px 10px;
+                }
+
+                .keyboard-hint {
+                    display: none; /* Hide on mobile - no keyboard */
+                }
+
+                /* Theme toggle in footer on mobile */
+                #status .theme-toggle-mobile {
+                    display: block;
+                    background: none;
+                    border: 1px solid var(--border);
+                    color: var(--text);
+                    padding: 4px 8px;
+                    font-family: inherit;
+                    font-size: 9px;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                }
+
+                /* Custom select adjustments */
+                .custom-select-trigger {
+                    min-height: 32px;
+                    padding: 6px 10px;
+                }
+
+                .custom-select-dropdown {
+                    max-height: 200px;
+                }
+
+                .custom-select-option {
+                    padding: 10px 12px;
+                }
+
+                /* Tooltips - disable on touch devices */
+                [data-tooltip]::after {
+                    display: none;
+                }
+
+                /* Terrain controls button group */
+                .terrain-controls {
+                    gap: 6px;
+                }
+
+                .terrain-controls button {
+                    width: 32px;
+                    height: 32px;
+                }
+
+                .terrain-intensity {
+                    padding: 6px 10px;
+                }
+
+                .terrain-intensity input[type="range"] {
+                    width: 50px;
+                }
+
+                /* Dual range slider - larger touch targets */
+                .dual-range-slider {
+                    width: 100px;
+                    height: 32px;
+                }
+
+                .dual-range-slider input[type="range"]::-webkit-slider-thumb {
+                    width: 16px;
+                    height: 16px;
+                }
+
+                .dual-range-slider input[type="range"]::-moz-range-thumb {
+                    width: 16px;
+                    height: 16px;
+                }
+            }
+
+            /* Extra small screens (< 480px) */
+            @media (max-width: 480px) {
+                #app {
+                    padding: 4px;
+                }
+
+                header h1 {
+                    font-size: 11px;
+                    letter-spacing: 0.15em;
+                }
+
+                .preset-select,
+                .custom-select:has(.preset-select) .custom-select-trigger {
+                    min-width: 100px;
+                    font-size: 9px;
+                }
+
+                #map-section {
+                    min-height: 40vh;
+                }
+
+                #visualization {
+                    height: 30vh;
+                    min-height: 30vh;
+                }
+
+                .param-row {
+                    padding: 8px;
+                }
+
+                .param-row .row-label {
+                    font-size: 9px;
+                    min-width: 38px;
+                }
+
+                .column {
+                    padding: 8px;
+                }
+
+                .column-param label {
+                    font-size: 8px;
+                    min-width: 40px;
+                }
+
+                #status {
+                    font-size: 9px;
+                }
             }
         </style>
     </head>
@@ -1191,6 +1556,7 @@
                 <!-- Modulation Column -->
                 <div class="column" id="mod-column">
                     <div class="column-header">Modulation</div>
+                    <div class="column-content">
                     <div class="column-param">
                         <label>LFO 1</label>
                         <select id="lfo1-shape" class="lfo-shape-select" data-tooltip="LFO 1 Shape">
@@ -1288,6 +1654,7 @@
                         />
                         <span class="param-value" id="release-value">0.30</span>
                     </div>
+                    </div>
                 </div>
 
                 <!-- Sequencer Column -->
@@ -1308,6 +1675,7 @@
                             </svg>
                         </button>
                     </div>
+                    <div class="column-content">
                     <div class="column-param">
                         <label>Root</label>
                         <select id="root-note" data-tooltip="Root note">
@@ -1444,11 +1812,13 @@
                             <option value="random">Rnd</option>
                         </select>
                     </div>
+                    </div>
                 </div>
 
                 <!-- Reverb Column -->
                 <div class="column" id="reverb-column">
                     <div class="column-header">Reverb</div>
+                    <div class="column-content">
                     <div class="column-param">
                         <label>Mix</label>
                         <input
@@ -1569,6 +1939,7 @@
                             >0%</span
                         >
                     </div>
+                    </div>
                 </div>
             </div>
 
@@ -1580,6 +1951,7 @@
                     <span class="midi-indicator" id="midi-indicator"></span>
                     <span id="midi-status">No MIDI</span>
                 </div>
+                <button class="theme-toggle-mobile" id="theme-toggle-mobile">Light</button>
             </footer>
         </div>
 
@@ -5020,6 +5392,16 @@
                             this.toggleTheme();
                         });
 
+                    // Mobile theme toggle (in footer)
+                    document
+                        .getElementById("theme-toggle-mobile")
+                        .addEventListener("click", () => {
+                            this.toggleTheme();
+                        });
+
+                    // Mobile accordion for column sections
+                    this.initMobileAccordion();
+
                     // Search
                     const searchInput = document.getElementById("search-input");
                     const searchBtn = document.getElementById("search-btn");
@@ -5096,13 +5478,40 @@
                         "light-mode",
                         this.isLightMode,
                     );
-                    document.getElementById("theme-toggle").textContent = this
-                        .isLightMode
-                        ? "Dark"
-                        : "Light";
+                    const themeText = this.isLightMode ? "Dark" : "Light";
+                    document.getElementById("theme-toggle").textContent = themeText;
+                    document.getElementById("theme-toggle-mobile").textContent = themeText;
 
                     this.terrain3D.setLightMode(this.isLightMode);
                     this.waveformDisplay.setLightMode(this.isLightMode);
+                }
+
+                initMobileAccordion() {
+                    // Only enable accordion on mobile
+                    const isMobile = window.matchMedia("(max-width: 768px)");
+
+                    const setupAccordion = (mobile) => {
+                        const columns = document.querySelectorAll(".column");
+                        columns.forEach((column) => {
+                            const header = column.querySelector(".column-header");
+                            if (!header) return;
+
+                            // Remove existing listener if any
+                            const newHeader = header.cloneNode(true);
+                            header.parentNode.replaceChild(newHeader, header);
+
+                            if (mobile.matches) {
+                                newHeader.addEventListener("click", (e) => {
+                                    // Don't toggle if clicking the play button
+                                    if (e.target.closest(".play-btn")) return;
+                                    column.classList.toggle("collapsed");
+                                });
+                            }
+                        });
+                    };
+
+                    setupAccordion(isMobile);
+                    isMobile.addEventListener("change", setupAccordion);
                 }
 
                 async handleSearch() {
