@@ -3045,6 +3045,11 @@
                     if (this.audioCtx.state === "suspended") {
                         await this.audioCtx.resume();
                     }
+
+                    // iOS Safari requires playing actual audio to fully unlock the context
+                    // Playing a silent buffer ensures audio works on mobile devices
+                    this.unlockAudioContext();
+
                     console.log("[DEBUG] AudioContext state:", this.audioCtx.state);
 
                     // Create filter (low-pass)
@@ -3096,6 +3101,17 @@
 
                     this.initialized = true;
                     console.log("Audio engine initialized");
+                }
+
+                // iOS Safari workaround: play a silent buffer to fully unlock audio
+                // Just calling resume() isn't enough on iOS - actual audio must play
+                unlockAudioContext() {
+                    const buffer = this.audioCtx.createBuffer(1, 1, 22050);
+                    const source = this.audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(this.audioCtx.destination);
+                    source.start(0);
+                    console.log("[DEBUG] Audio context unlocked with silent buffer");
                 }
 
                 setFilterCutoff(frequency) {
