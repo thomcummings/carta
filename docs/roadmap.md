@@ -15,7 +15,7 @@ Stabilizing core synth functionality and exploring sound design features.
 - [ ] Merge and test feature branches
 - [ ] URL sharing — Encode location + settings in URL params for shareability
 - [ ] User presets — Save/load presets to localStorage
-- [ ] Wavetable export — Export terrain as .wav or Serum-compatible format
+- [x] Wavetable export — Export terrain as .wav (Serum/Vital/Phase Plant compatible)
 
 ## Terrain-Driven Features (New)
 Features that lean into the unique terrain-as-instrument concept:
@@ -52,7 +52,8 @@ Ideas we're not pursuing now but might revisit:
 - [x] MIDI input support — 2025-01
 - [x] Scale/key selection — 2025-01
 - [x] Light/dark mode — 2025-01
+- [x] Wavetable download (.wav export) — 2026-03
 
 ---
 
-*Last updated: 2025-01-19*
+*Last updated: 2026-03-24*
